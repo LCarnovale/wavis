@@ -2,9 +2,8 @@
 A simple multithreaded sound visualiser written in Python using Turtle. All it really 
 does is wrap the waveform around a circle, but I reckon it looks pretty good.
 
-The original intention was for this to listen to device audio and 
-feed that into the visualiser, but I couldn't get that to work, so currently
-it takes in audio files. I also didn't want to use turtle, but it's the only thing that didn't require a lot of effort to learn to use. Even though turtle is (very) slow, it still seems to be fast enough, at least on my laptop. 
+Graphics are done using Turtle. The benefit of this is that if you can run
+Python you can almost definitely run most of this program. I didn't always want to use turtle, but it's the only thing that didn't require a lot of effort for me to learn to use. Even though turtle is (very) slow, it still seems to be fast enough, at least on my laptop. 
 The use of two threads to simultaneously read sound data and draw it on screen provides a significant performance improvement.
 
 There are a few dependencies, for playback: [just_playback](https://github.com/cheofusi/just_playback) made playback a delightfully simple process. It itself has no other dependencies, and can be pip'd:
@@ -15,12 +14,28 @@ Also required:
 - `numpy` For (fast) mathematical operations. 
 - `scipy` For reading audio files.
 
+For visualising device audio, `pyaudio` is needed. In general google will be your friend for getting it, but for python 3.4-3.6 `pip` will do the job:
+
+    pip install pyaudio
+
+Other versions of python may require finding `.whl`'s on the internet and
+manually installing it (which isn't too hard, I managed to do it).
 # Usage
-To use:
+### Song playback
+There are two modes of operation. With a file supplied as an argument:
 
     python wavis.py "A file.wav"
 
-Without arguments, it will run the default sample file. 
+_Wavis_ will play the song and have a visualiser along with it. The 
+keyboard controls below all apply. 
+
+### Visualise Device Audio
+
+Without arguments, it will attempt to listen to device audio.
+You will be prompted to select a device. If you wish to use a microphone,
+selecting one should "just work". If you want to listen to device audio,
+for Windows, you will need to use the Stereo Mix service. I assume there
+is something similar for other operating systems.   
 
 Note that by virtue of using multiple threads the program is vulnerable to hanging on some types of exceptions. Most common ones have been accounted for but it has not been extensively tested. I would be wary of changing audio output devices etc during playback (although it might work fine).
 The cleanest way to stop the program will always be pressing <kbd>Esc</kbd> with focus on the frontend graphics (Turtle) screen.

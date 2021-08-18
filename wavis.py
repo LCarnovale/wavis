@@ -1,4 +1,4 @@
-# import pyaudio
+from live_stream import LiveStream
 
 import time
 import turtle
@@ -11,12 +11,10 @@ import numpy as np
 from stream import Stream
 from file_stream import FileStream
 
-freqs = np.array([1, 2])#, 500, 750, 1000, 2000])
-n_sins = len(freqs)
 if len(sys.argv) > 1:
     audio_file = sys.argv[1]
 else:
-    audio_file = "./bensound-dubstep.wav"
+    audio_file = None
 RUNNING = False
 def _wait_func(sleep_t: float, wait=True):
     """sleep for `sleep_t` seconds. if `wait=True` (default) then 
@@ -44,35 +42,6 @@ def wait_thread(sleep_t: float, start=True, wait=True):
         t.start()
     return t
     
-
-class test_stream(Stream):
-    def __init__(self, bitrate=44100) -> None:
-        self.bitrate = bitrate
-        self._random_coeffs = np.random.rand(freqs.size)+1
-
-    def read(self, chunk_size):
-        """ 
-        Return time values and corresponding signal data,
-        respectively.
-        """
-        chunk_time = chunk_size/self.bitrate
-        t = Thread(None, target=_wait_func, args=(chunk_time, False))
-        t.start()
-        times = np.linspace(0, chunk_time, chunk_size)#[::-1]
-        times = time.time() + times
-        data = self._func(times)
-        t.join()
-        return times, data
-
-    def _func(self, time):
-        time = np.array(time)
-        time = time.reshape(-1, 1)
-        f = np.sum(np.sin(
-            freqs*(time + self._random_coeffs) 
-        ),axis=1)
-        return f
-        
-
 
 def setup():
     """ Returns a handle for the window.
@@ -187,9 +156,6 @@ def _end_wait(*args):
 
 time_glob = None
 audio_glob = None
-WAIT_GET = 1
-WAIT_DRAW = 2
-buffer_flip = WAIT_GET
 buffer_fill_event = Event()
 draw_finish_event = Event()
 
@@ -264,6 +230,7 @@ class ReadThread(Thread):
             
             read_times.t_stop()
             if len(time) == 0:
+                print("\nStream ended.")
                 # The sound has run out.
                 _end_wait()
                 break
@@ -343,10 +310,20 @@ def bind_keys():
 
 if __name__ == "__main__":
     read_portion = 1.1 # Amount of full circle to read each tick
-    angular_speed_rev_ps = 60 # Revolutions per second
+    angular_speed_rev_ps = 20 # Revolutions per second
+
+    # Do some maths to set the bit read rate and angular speed
+    # to fulfil the above two parameters
+    bitrate = 44100
+    angular_speed_rad_ps = 2*np.pi*angular_speed_rev_ps
+    rads_per_bit = angular_speed_rad_ps / bitrate
+    bits_per_read = int(2*np.pi*read_portion // rads_per_bit)
 
     try:
-        ts = FileStream(audio_file, realtime=True)
+        if audio_file is None:
+            ts = LiveStream(chunk_size=bits_per_read)
+        else:
+            ts = FileStream(audio_file, realtime=True)
     except Exception as e:
         print("Can't open audio file "f"{audio_file}.")
         print("Error:", e)
@@ -355,11 +332,6 @@ if __name__ == "__main__":
         wait_for_draw_times.kill()
         wait_for_read_times.kill()
         exit()
-    # Do some maths to set the bit read rate and angular speed
-    # to fulfil the above two parameters
-    angular_speed_rad_ps = 2*np.pi*angular_speed_rev_ps
-    rads_per_bit = angular_speed_rad_ps / ts.bitrate
-    bits_per_read = int(2*np.pi*read_portion // rads_per_bit)
 
     # Setup some things
     RUNNING = True
