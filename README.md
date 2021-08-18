@@ -18,7 +18,12 @@ Also required:
 # Usage
 To use:
 
-    python wavis.py "A song.wav"
+    python wavis.py "A file.wav"
+
+Without arguments, it will run the default sample file. 
+
+Note that by virtue of using multiple threads the program is vulnerable to hanging on some types of exceptions. Most common ones have been accounted for but it has not been extensively tested. I would be wary of changing audio output devices etc during playback (although it might work fine).
+The cleanest way to stop the program will always be pressing <kbd>Esc</kbd> with focus on the frontend graphics (Turtle) screen.
 
 I have only tried it with `.wav`'s, but it could potentially work with anything that `scipy.io.wavfile.read` works with
 (this does not include mp3s).
