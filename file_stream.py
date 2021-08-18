@@ -32,6 +32,7 @@ RUNNING = True
 class ClockThread(Thread):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, group=None, **kwargs)
+        self.end = False
     
     def run(self):
         import datetime
@@ -42,8 +43,13 @@ class ClockThread(Thread):
             wt.start()
             print("Clock:", str(next)[:10], end="\r")
             wt.join()
+            if self.end:
+                break
             next = (datetime.datetime.now() - t)
         print("\nFinal clock time:", (datetime.datetime.now() - t))
+    
+    def kill(self):
+        self.end = True
 
 class FileStream(Stream):
     def __init__(self, fname, realtime=False):
@@ -53,11 +59,11 @@ class FileStream(Stream):
         If not, then each call will progress a cursor that persists
         between calls.
         """
-        self.playback = Playback(fname)
-        self.paused = False
 
         rate, data = wf.read(fname)
         super(FileStream, self).__init__(bitrate=rate)
+        self.playback = Playback(fname)
+        self.paused = False
         self.file = fname
         self.realtime = realtime
         self.data = data[:,0] # Pick a channel (I assume this would be left)
@@ -65,7 +71,11 @@ class FileStream(Stream):
         self.start_time = time.time()
         self.clock_thr = ClockThread()
         self.clock_thr.start()
-        self.playback.play()
+        try:
+            self.playback.play()
+        except:
+            self.clock_thr.kill()
+            
         self.dt = (self.time_ax[10] - self.time_ax[0])/10
     def read(self, chunk_size):
         if self.realtime:

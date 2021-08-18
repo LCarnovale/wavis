@@ -219,20 +219,30 @@ class VisThread(Thread):
 
             draw_times.t_start()
             draw_finish_event.clear()
-            # Drawing thread is now in the process of drawing
-            turtle.clear()
-            turtle.up()
-            t_start = time_glob[0]
-            angle_start = self.rads_p_s * t_start
-            angle_end = draw_circle(audio_glob, angle=self.rads_p_b*len(audio_glob),
-                        start=angle_end, radius=self.radius, 
-                        amp=self.amp, scale=self.scale, lock=draw_finish_event.set)
-            # The above method will call draw_finish_event.set() when it is done with 
-            # references to the buffers. The reader thread can then immediately 
-            # start filling the buffers for the next draw call
-            turtle.update()
-            draw_times.t_stop()
+            try:
+                # Drawing thread is now in the process of drawing
+                turtle.clear()
+                turtle.up()
+                t_start = time_glob[0]
+                angle_start = self.rads_p_s * t_start
+                angle_end = draw_circle(audio_glob, angle=self.rads_p_b*len(audio_glob),
+                            start=angle_end, radius=self.radius, 
+                            amp=self.amp, scale=self.scale, lock=draw_finish_event.set)
+                # The above method will call draw_finish_event.set() when it is done with 
+                # references to the buffers. The reader thread can then immediately 
+                # start filling the buffers for the next draw call
+                turtle.update()
+            except:
+                # The turtle window has probably been manually closed
+                # without use of the Escape key.
+                _end_wait()
+                # Set the draw finish event so that the Reader thread doesn't hang
+                draw_finish_event.set()
+                break  
+            finally:
+                draw_times.t_stop()
         draw_finish_event.set()
+    
         
 
 class ReadThread(Thread):
@@ -335,8 +345,16 @@ if __name__ == "__main__":
     read_portion = 1.1 # Amount of full circle to read each tick
     angular_speed_rev_ps = 60 # Revolutions per second
 
-    ts = FileStream(audio_file, realtime=True)
-
+    try:
+        ts = FileStream(audio_file, realtime=True)
+    except Exception as e:
+        print("Can't open audio file "f"{audio_file}.")
+        print("Error:", e)
+        draw_times.kill()
+        read_times.kill()
+        wait_for_draw_times.kill()
+        wait_for_read_times.kill()
+        exit()
     # Do some maths to set the bit read rate and angular speed
     # to fulfil the above two parameters
     angular_speed_rad_ps = 2*np.pi*angular_speed_rev_ps
