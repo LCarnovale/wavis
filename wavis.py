@@ -9,7 +9,7 @@ import sys
 import numpy as np
 
 from stream import Stream
-from aurora_test import FileStream
+from file_stream import FileStream
 
 freqs = np.array([1, 2])#, 500, 750, 1000, 2000])
 n_sins = len(freqs)
