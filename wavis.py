@@ -11,6 +11,8 @@ import numpy as np
 from stream import Stream
 from file_stream import FileStream
 
+from helpers import TimerThread, TickThread
+
 if len(sys.argv) > 1:
     audio_file = sys.argv[1]
 else:
@@ -98,57 +100,26 @@ def draw_circle(data,angle=2*np.pi, start=0, radius=200,
         turtle.goto(*c)
     return angles[-1]
 
-class TimerThread(Thread):
-    """ A helper class to asynchronously time operations and keep a running average."""
-    def __init__(self, num_avgs, *args, **kwargs):
-        """ Any keyword arguments for Thread.__init__ can be used, but the only necessary
-        argument for this class is `num_avgs`, the number of time values to average to get 
-        the average time."""
-        super(TimerThread, self).__init__(*args, group=None, **kwargs)
-        self.array = np.zeros(num_avgs)
-        self.end = False
-        self.timerStopped = Event()
-        self.timerStopped.clear()
-
-    def t_start(self):
-        self._start = time.time()
-
-    def t_stop(self):
-        self._elapsed = time.time() - self._start
-        self.timerStopped.set()
-
-    def kill(self):
-        self.end = True
-        self.timerStopped.set()
-
-    def run(self):
-        while True:
-            self.timerStopped.wait()
-            if self.end: break
-            self.array[:-1] = self.array[1:]
-            self.array[-1] = self._elapsed
-            self.timerStopped.clear()
-
-    def get_avg(self):
-        if not np.any(np.nonzero(self.array)):
-            # If all values are zero, just return zero (the np.mean way will bug out)
-            return 0
-        else:
-            return np.mean(self.array[np.nonzero(self.array)])
-    
-    def get_array(self):
-        return self.array
 
 
-t_avgs = 100
-draw_times = TimerThread(t_avgs)
+t_avgs = 10
+draw_times = TimerThread(t_avgs, name="draw_times")
 draw_times.start()
-read_times = TimerThread(t_avgs)
+read_times = TimerThread(t_avgs, name="read_times")
 read_times.start()
-wait_for_draw_times = TimerThread(t_avgs)
+wait_for_draw_times = TimerThread(t_avgs, name="wait_for_draw_times")
 wait_for_draw_times.start()
-wait_for_read_times = TimerThread(t_avgs)
+wait_for_read_times = TimerThread(t_avgs, name="wait_for_read_times")
 wait_for_read_times.start()
+
+def _print_times():
+    a = draw_times.get_avg() * 1e3
+    b = read_times.get_avg() * 1e3
+    c = wait_for_draw_times.get_avg() * 1e3
+    d = wait_for_read_times.get_avg() * 1e3
+    print(f"Draw/Read/Wait for Draw/Wait for Read (ms): {a:.1f} / {b:.1f} / {c:.1f} / {d:.1f}", end='\r')
+
+tick_thr = TickThread(1, _print_times)
 
 def _end_wait(*args):
     global RUNNING
@@ -351,6 +322,8 @@ if __name__ == "__main__":
     buffer_fill_event.clear()
     draw_finish_event.set()
 
+    # Start the timer printing thread
+    tick_thr.start()
     rt.start()
     vt.run() # Turtle can't be used in any non-main thread >:(
     # Both threads will run indefinitely until RUNNING is set to False
@@ -362,6 +335,7 @@ if __name__ == "__main__":
     read_times.kill()
     wait_for_draw_times.kill()
     wait_for_read_times.kill()
+    tick_thr.stop()
 
     print("Average time for draw:         " f"{draw_times.get_avg()*1e3:.3f} ms") 
     print("Average time for read:         " f"{read_times.get_avg()*1e3:.3f} ms") 
