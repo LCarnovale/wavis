@@ -1,5 +1,5 @@
 # import pyaudio
-#%%
+
 import time
 import turtle
 from threading import Thread, Event
@@ -176,7 +176,7 @@ wait_for_draw_times = TimerThread(t_avgs)
 wait_for_draw_times.start()
 wait_for_read_times = TimerThread(t_avgs)
 wait_for_read_times.start()
-#%%
+
 def _end_wait(*args):
     global RUNNING
     RUNNING = False
@@ -266,6 +266,7 @@ class ReadThread(Thread):
 
 
         buffer_fill_event.set()
+        self.stream.stop()
     
         
 
