@@ -78,3 +78,6 @@ class LiveStream(Stream):
     def seek(self, val):
         print("Not implemented for live stream.")
     rseek = seek
+
+    def can_pause(self):
+        return False

@@ -277,6 +277,9 @@ def bind_keys():
         global y_scale
         y_scale /= 1.05
     def pause():
+        if not ts.can_pause():
+            print("Can't pause this stream.")
+            return
         if ts.playback.paused:
             ts.play()
         else:
