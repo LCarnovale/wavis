@@ -42,3 +42,7 @@ Keyboard controls:
 When finishing the program will display the average time of reading, drawing
 and the time those two threads spent waiting for the other. If you get low
 framerates, you can usually speed it up by decreasing the number of bytes read in each tick (<kbd>,</kbd>), and if that ends up looking too jagged on the front you can try stretch out the arcs with <kbd>'</kbd>.
+
+# Example
+The last minute or so of Flume - Helix:
+![Visualisation GIF](./Animation.gif)
