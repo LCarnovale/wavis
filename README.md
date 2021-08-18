@@ -1,15 +1,29 @@
+# Introduction
 A simple multithreaded sound visualiser written in Python using Turtle. All it really 
 does is wrap the waveform around a circle, but I reckon it looks pretty good.
 
-The only dependency is for playback, [just_playback](https://github.com/cheofusi/just_playback). It itself has no other dependencies, and can be pip'd:
+The original intention was for this to listen to device audio and 
+feed that into the visualiser, but I couldn't get that to work, so currently
+it takes in audio files. I also didn't want to use turtle, but it's the only thing that didn't require a lot of effort to learn to use. Even though turtle is (very) slow, it still seems to be fast enough, at least on my laptop. 
+The use of two threads to simultaneously read sound data and draw it on screen provides a significant performance improvement.
+
+There are a few dependencies, for playback: [just_playback](https://github.com/cheofusi/just_playback) made playback a delightfully simple process. It itself has no other dependencies, and can be pip'd:
 
     pip install just_playback
 
-Usage:
-```
-python wavis.py "A song.wav"
-```
-Once started, playback should also begin. Sometimes there is a slight delay in the playback which offsets it from the visualiser, press `s` to resynchronise them.
+Also required:
+- `numpy` For (fast) mathematical operations. 
+- `scipy` For reading audio files.
+
+# Usage
+To use:
+
+    python wavis.py "A song.wav"
+
+I have only tried it with `.wav`'s, but it could potentially work with anything that `scipy.io.wavfile.read` works with
+(this does not include mp3s).
+
+Once the program is started, the turtle display should pop up with the visualiser visualising, and playback should also begin. Sometimes there is a slight delay in the playback which offsets it from the visualiser, press `s` to resynchronise them.
 
 Keyboard controls:
 
@@ -17,7 +31,7 @@ Keyboard controls:
 |-----|---------|
 | <kbd>&#8592;</kbd>/<kbd>&#8594;</kbd> | Jump backward/forward 5 seconds in playback |
 |<kbd>s</kbd> | Resynchronise playback to match visualisation |
-| <kbd>space</kbd> | Pause/resume (Note for some reason playback will resume from the beginning, you can bring it back with `s`.) |
+| <kbd>space</kbd> | Pause/resume (Note for some reason playback will resume from the beginning, you can bring it back with <kbd>s</kbd>.) |
 | <kbd>&#8593;</kbd>/<kbd>&#8595;</kbd> | Increase / Decrease the amplitude of the waveform |
 | <kbd>j</kbd>/<kbd>l</kbd> | Decrease/Increase horizontal scale |
 | <kbd>k</kbd>/<kbd>i</kbd> | Decrease/Increase vertical scale |
