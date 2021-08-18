@@ -16,7 +16,7 @@ n_sins = len(freqs)
 if len(sys.argv) > 1:
     audio_file = sys.argv[1]
 else:
-    audio_file = "./Hi This is Flume.wav"
+    audio_file = "./bensound-dubstep.wav"
 RUNNING = False
 def _wait_func(sleep_t: float, wait=True):
     """sleep for `sleep_t` seconds. if `wait=True` (default) then 
@@ -149,8 +149,8 @@ class TimerThread(Thread):
         self.timerStopped.set()
 
     def kill(self):
-        self.timerStopped.set()
         self.end = True
+        self.timerStopped.set()
 
     def run(self):
         while True:
@@ -161,7 +161,11 @@ class TimerThread(Thread):
             self.timerStopped.clear()
 
     def get_avg(self):
-        return np.mean(self.array[np.nonzero(self.array)])
+        if not np.any(np.nonzero(self.array)):
+            # If all values are zero, just return zero (the np.mean way will bug out)
+            return 0
+        else:
+            return np.mean(self.array[np.nonzero(self.array)])
     
     def get_array(self):
         return self.array
@@ -258,10 +262,10 @@ class ReadThread(Thread):
             # We now wait for the drawing thread to take the data before we can fill
             # the global buffers with new data.
             draw_finish_event.wait()
+            wait_for_draw_times.t_stop()
             time_glob = time
             audio_glob = audio
 
-            wait_for_draw_times.t_stop()
             buffer_fill_event.set()
 
 

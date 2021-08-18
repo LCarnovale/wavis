@@ -46,3 +46,6 @@ framerates, you can usually speed it up by decreasing the number of bytes read i
 # Example
 The last minute or so of Flume - Helix:
 ![Visualisation GIF](./Animation.gif)
+
+Included in the repository is a sample royalty free audio file
+I nabbed from [bensound](https://www.bensound.com/royalty-free-music/track/dubstep). 
