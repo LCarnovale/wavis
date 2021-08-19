@@ -2,6 +2,7 @@ from live_stream import LiveStream
 
 import time
 import turtle
+import tkinter as tk
 from threading import Thread, Event
 import sys
 
@@ -48,12 +49,28 @@ def wait_thread(sleep_t: float, start=True, wait=True):
 def setup():
     """ Returns a handle for the window.
     """
+    
+    # root = tk.Tk()
+    # root.attributes('alpha', 0.0)
+    # root.iconify()
+    
+    # canvas = tk.Canvas(root, bg="black", height=300, width=300)
+    # tk_window = tk.Toplevel(root)
+    # tk_window.overrideredirect(1)
+    # window = turtle.TurtleScreen(canvas)
     window = turtle.Screen()
-    turtle.hideturtle()
-    window.setup(width = 1.0, height = 1.0)
+    # turtle.hideturtle()
+    # t1 = turtle.getturtle()
+    # t1 = window.turtles()[0]
+    # t1.hideturtle()
+    window.setup(width = 0.5, height = .5)
     window.bgcolor([0, 0, 0])
     window.tracer(0, 0)             # Makes the turtle's speed instantaneous
-    return window
+    # I tried to implement some tkinter stuff in this 
+    # function to hide the window border. It didn't work, 
+    # but figured I'd leave the ability to pass different turtle 
+    # objects through. This still has the original behaviour.
+    return window, turtle
 
 
 x_scale = 1
@@ -117,8 +134,30 @@ def _print_times():
     b = read_times.get_avg() * 1e3
     c = wait_for_draw_times.get_avg() * 1e3
     d = wait_for_read_times.get_avg() * 1e3
-    print(f"Draw/Read/Wait for Draw/Wait for Read (ms): {a:.1f} / {b:.1f} / {c:.1f} / {d:.1f}", end='\r')
 
+    print(f"Draw/Read/Wait for Draw/Wait for Read (ms): {a:.1f} / {b:.1f} / {c:.1f} / {d:.1f} | " \
+          f"Bytes/read: {int(rt.bits_per_read)} | mrad/byte: {1e3*vt.rads_p_b:.2f} | " \
+          f"Circles/read: {int((rt.bits_per_read*vt.rads_p_b)*100/(2*np.pi))}%           ", end='\c\r')
+
+    ## Could use something like this:
+    # from ctypes import *
+ 
+    # STD_OUTPUT_HANDLE = -11
+    
+    # class COORD(Structure):
+    #     pass
+    
+    # COORD._fields_ = [("X", c_short), ("Y", c_short)]
+    
+    # def print_at(r, c, s):
+    #     h = windll.kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+    #     windll.kernel32.SetConsoleCursorPosition(h, COORD(c, r))
+    
+    #     c = s.encode("windows-1252")
+    #     windll.kernel32.WriteConsoleA(h, c_char_p(c), len(c), None, None)
+    
+    # print_at(6, 3, "Hello") 
+    
 tick_thr = TickThread(1, _print_times)
 
 def _end_wait(*args):
@@ -163,7 +202,7 @@ class VisThread(Thread):
                 t_start = time_glob[0]
                 angle_start = self.rads_p_s * t_start
                 angle_end = draw_circle(audio_glob, angle=self.rads_p_b*len(audio_glob),
-                            start=angle_end, radius=self.radius, 
+                            start=angle_start, radius=self.radius, 
                             amp=self.amp, scale=self.scale, lock=draw_finish_event.set)
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
@@ -222,7 +261,7 @@ class ReadThread(Thread):
     
         
 
-def bind_keys():
+def bind_keys(_turtle=turtle):
     def up_scale():
         vt.scale *= 1.05
     def down_scale():
@@ -265,21 +304,21 @@ def bind_keys():
     def seek_forward():
         ts.rseek(5)
     
-    turtle.onkey(up_scale, "Up")
-    turtle.onkey(down_scale, "Down")
-    turtle.onkey(up_rps, ".")
-    turtle.onkey(down_rps, ",")
-    turtle.onkey(up_rpb, "'")
-    turtle.onkey(down_rpb, ";")
-    turtle.onkey(up_x_scale,"l")
-    turtle.onkey(down_x_scale,"j")
-    turtle.onkey(up_y_scale, "i")
-    turtle.onkey(down_y_scale, "k")
-    turtle.onkey(stop, "Escape")
-    turtle.onkey(pause, "space")
-    turtle.onkey(sync, "s")
-    turtle.onkey(seek_back, "Left")
-    turtle.onkey(seek_forward, "Right")
+    _turtle.onkey(up_scale, "Up")
+    _turtle.onkey(down_scale, "Down")
+    _turtle.onkey(up_rps, ".")
+    _turtle.onkey(down_rps, ",")
+    _turtle.onkey(up_rpb, "'")
+    _turtle.onkey(down_rpb, ";")
+    _turtle.onkey(up_x_scale,"l")
+    _turtle.onkey(down_x_scale,"j")
+    _turtle.onkey(up_y_scale, "i")
+    _turtle.onkey(down_y_scale, "k")
+    _turtle.onkey(stop, "Escape")
+    _turtle.onkey(pause, "space")
+    _turtle.onkey(sync, "s")
+    _turtle.onkey(seek_back, "Left")
+    _turtle.onkey(seek_forward, "Right")
             
 
 if __name__ == "__main__":
@@ -308,34 +347,43 @@ if __name__ == "__main__":
         exit()
 
     # Setup some things
-    RUNNING = True
-    window = setup()
-    bind_keys()
-    turtle.listen()
+    try:
+        window, _turtle = setup()
+        bind_keys(_turtle)
+        _turtle.listen()
+    except Exception as e:
+        print("Setup failed.")# Error: %s" % e)
+        raise e
+    else:
+        RUNNING = True
 
-    # Default circle parameters
-    radius, amp, scale = 300, 20, 0.007
-    vt = VisThread(angular_speed_rad_ps, rads_per_bit, radius, amp, scale)
-    rt = ReadThread(bits_per_read, ts)
-    # Buffer needs to fill first, act as if we begin waiting
-    # for buffer after a draw has finished 
-    buffer_fill_event.clear()
-    draw_finish_event.set()
+        # Default circle parameters
+        radius, amp, scale = 300, 20, 0.007
+        vt = VisThread(angular_speed_rad_ps, rads_per_bit, radius, amp, scale)
+        rt = ReadThread(bits_per_read, ts)
+        # Buffer needs to fill first, act as if we begin waiting
+        # for buffer after a draw has finished 
+        buffer_fill_event.clear()
+        draw_finish_event.set()
 
-    # Start the timer printing thread
-    tick_thr.start()
-    rt.start()
-    vt.run() # Turtle can't be used in any non-main thread >:(
-    # Both threads will run indefinitely until RUNNING is set to False
-
-    # At this point the user has stopped the program and now we are
-    # wrapping things up, kill the timer threads (but also keep them alive
-    # to reference them) 
-    draw_times.kill()
-    read_times.kill()
-    wait_for_draw_times.kill()
-    wait_for_read_times.kill()
-    tick_thr.stop()
+        # Start the timer printing thread
+        tick_thr.start()
+        rt.start()
+        vt.run() # Turtle can't be used in any non-main thread >:(
+        # Both threads will run indefinitely until RUNNING is set to False
+    finally:
+        # In case no thread was able to do this already
+        RUNNING = False
+        # At this point the user has stopped the program and now we are
+        # wrapping things up, kill the timer threads (but also keep them alive
+        # to reference them) 
+        draw_times.kill()
+        read_times.kill()
+        wait_for_draw_times.kill()
+        wait_for_read_times.kill()
+        tick_thr.stop()
+        print()
+        print("Ending threads...")
 
     print("Average time for draw:         " f"{draw_times.get_avg()*1e3:.3f} ms") 
     print("Average time for read:         " f"{read_times.get_avg()*1e3:.3f} ms") 
