@@ -1,3 +1,5 @@
+*Note*: For the sake of anyone who comes across this, this is very much a side project. Please excuse the sloppy code. I will improve it when I have some time.
+
 # Introduction
 A simple multithreaded sound visualiser written in Python using Turtle. All it really 
 does is wrap the waveform around a circle, but I reckon it looks pretty good.
