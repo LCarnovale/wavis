@@ -33,6 +33,7 @@ class LiveStream(Stream):
         self.paused = False
 
         # stream object
+        print("Loading pyAudio...")
         self.p = pyaudio.PyAudio()
         # Get audio source:
         print("Getting available devices...")
