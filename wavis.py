@@ -1,18 +1,16 @@
-from live_stream import LiveStream
-
-import time
-import turtle
-import tkinter as tk
-from threading import Thread, Event
 import sys
+import time
+import tkinter as tk
+from threading import Event, Thread
 
-# import matplotlib.pyplot as plt
 import numpy as np
 
-from stream import Stream
+from draw_funcs import draw_circle, draw_stereo
+import draw_funcs as df
 from file_stream import FileStream
-
-from helpers import TimerThread, TickThread
+from helpers import TickThread, TimerThread
+from live_stream import LiveStream
+from stream import Stream
 
 if len(sys.argv) > 1:
     audio_file = sys.argv[1]
@@ -51,96 +49,18 @@ def wait_thread(sleep_t: float, start=True, wait=True):
     
 
 def setup():
-    """ Returns a handle for the window.
+    """ Returns a handle for the canvas.
     """
+    master = tk.Tk()
+    master.configure(background="black")
+    width, height = 500, 500
+    canvas = tk.Canvas(master, width=width, height=height)
+    canvas.configure(bg="black")
+    canvas.pack(fill='both', expand=True)
     
-    # root = tk.Tk()
-    # root.attributes('alpha', 0.0)
-    # root.iconify()
-    
-    # canvas = tk.Canvas(root, bg="black", height=300, width=300)
-    # tk_window = tk.Toplevel(root)
-    # tk_window.overrideredirect(1)
-    # window = turtle.TurtleScreen(canvas)
-    window = turtle.Screen()
-    turtle.hideturtle()
-    # t1 = turtle.getturtle()
-    # t1 = window.turtles()[0]
-    # t1.hideturtle()
-    window.setup(width = 0.5, height = .5)
-    window.bgcolor([0, 0, 0])
-    window.tracer(0, 0)             # Makes the turtle's speed instantaneous
-    # I tried to implement some tkinter stuff in this 
-    # function to hide the window border. It didn't work, 
-    # but figured I'd leave the ability to pass different turtle 
-    # objects through. This still has the original behaviour.
-    return window, turtle
+    return canvas
 
 
-x_scale = 1
-y_scale = 1
-def draw_circle(data,angle=2*np.pi, start=0, radius=200, 
-        amp=20,scale=False, lock=None):
-    """ Plot the data on a circle, spread out over the given angle.
-    Give `angle=2*pi` (default) for a full circle. 
-    The plotting will begin at angle `start`, default 0.
-
-    The pen will not be raised before moving to the start, but 
-    will be set to down after moving to the start and before 
-    drawing the data.
-    
-    If `scale` is not provided or is False, the data will be normalised so that the max amplitude corresponds to
-    `amp` pixels, default 20, and values of zero will lie on the radius.
-    If `scale` is provided, the data will be scaled with 
-    `data * scale` giving the amplitude in pixels.
-
-    Set the radius of the circle in pixels with `radius`, default 200.
-    Returns the angle of the last drawn pixel.
-
-    If a `lock` method is provided, it will be called once any operations
-    directly referencing the input data are finished.
-    ie, provide the method `event.set`.
-    """
-    angles = np.linspace(start, start+angle, len(data))
-    data_max = max(abs(data))
-    if scale == False:
-        radii = amp * data/data_max
-    else:
-        radii = (scale * data)
-    if lock is not None:
-        lock()
-    radii += radius
-    x_pos = x_scale * (radii * np.cos(angles)).astype(int)
-    y_pos = y_scale * (radii * np.sin(angles)).astype(int)
-    coords = np.array([x_pos, y_pos]).T
-    # turtle.up()
-    turtle.goto(*coords[0])
-    turtle.down()
-    for c in coords[1:]:
-        turtle.goto(*c)
-    return angles[-1]
-
-def draw_stereo(left, right, scale=0.2,
-        lock=None):
-    """ Draws dots at x-y coordinates with left deflection
-    for x and right deflection for y. Distances are multiplied
-    by the global `x_scale` and `y_scale` variables as well
-    as both are multiplied by the `scale` parameter, default `0.2`.
-
-    If a `lock` method is provided, it will be called once any operations
-    directly referencing the input data are finished.
-    ie, provide the method `event.set`.
-    """
-  
-    coords = (scale * np.array([left*x_scale, right*y_scale]).T).astype(int)
-    if lock is not None:
-        lock()
-    turtle.goto(*coords[0])
-    # turtle.down()
-    for c in coords[1:]:
-        turtle.goto(*c)
-        turtle.dot(4)
-    return coords[-1]
 
 t_avgs = 10
 draw_times = TimerThread(t_avgs, name="draw_times")
@@ -201,7 +121,7 @@ class VisThread(Thread):
         self.radius = radius
         self.amp = amp
         self.scale = scale
-        turtle.pencolor(pen_colour)
+        self.pen_colour = pen_colour
         
     def set_rads_p_s(self, val):
         self.rads_p_s = val
@@ -211,7 +131,10 @@ class VisThread(Thread):
 
     def run(self):
         angle_end = 0
+        tags = []
         while RUNNING:
+            # This thread usually has some time to kill, so use it to resize 
+            # the canvas.
             wait_for_read_times.t_start()
             # Wait for buffers to be written too
             buffer_fill_event.wait()
@@ -221,22 +144,22 @@ class VisThread(Thread):
             draw_finish_event.clear()
             try:
                 # Drawing thread is now in the process of drawing
-                turtle.clear()
-                turtle.up()
+                canvas.delete('all')
                 if STEREO_MODE:
                     draw_stereo(*audio_glob, lock=draw_finish_event.set)
                 else:
                     t_start = time_glob[0]
-                    angle_start = self.rads_p_s * t_start
-                    angle_end = draw_circle(audio_glob[0], angle=self.rads_p_b*len(audio_glob[0]),
-                                start=angle_start, radius=self.radius, 
-                                amp=self.amp, scale=self.scale, lock=draw_finish_event.set)
+                    # angle_start = self.rads_p_s * t_start
+                    tags, angle_end = draw_circle(canvas, audio_glob[0], angle=self.rads_p_b*len(audio_glob[0]),
+                                start=angle_end, radius=self.radius, 
+                                amp=self.amp, scale=self.scale, lock=draw_finish_event.set,
+                                fill=self.pen_colour)
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
                 # start filling the buffers for the next draw call
-                turtle.update()
+                canvas.master.update()
             except Exception as e:
-                # The turtle window has probably been manually closed
+                # The window has probably been manually closed
                 # without use of the Escape key.
                 print("Draw failed, error: %s" % e)
                 _end_wait()
@@ -291,32 +214,32 @@ class ReadThread(Thread):
     
         
 
-def bind_keys(_turtle=turtle):
-    def up_scale():
+def bind_keys(root : tk.Tk):
+    def up_scale(*args):
         vt.scale *= 1.05
-    def down_scale():
+    def down_scale(*args):
         vt.scale /= 1.05
-    def up_rps():
+    def up_rps(*args):
         rt.bits_per_read *= 1.05
-    def down_rps():
+    def down_rps(*args):
         rt.bits_per_read /= 1.05
-    def up_rpb():
+    def up_rpb(*args):
         vt.rads_p_b *= 1.05
-    def down_rpb():
+    def down_rpb(*args):
         vt.rads_p_b /= 1.05
-    def up_x_scale():
-        global x_scale
-        x_scale *= 1.05
-    def down_x_scale():
-        global x_scale
-        x_scale /= 1.05
-    def up_y_scale():
-        global y_scale
-        y_scale *= 1.05
-    def down_y_scale():
-        global y_scale
-        y_scale /= 1.05
-    def pause():
+    def up_x_scale(*args):
+        # global df.x_scale
+        df.x_scale *= 1.05
+    def down_x_scale(*args):
+        # global df.x_scale
+        df.x_scale /= 1.05
+    def up_y_scale(*args):
+        # global df.y_scale
+        df.y_scale *= 1.05
+    def down_y_scale(*args):
+        # global df.y_scale
+        df.y_scale /= 1.05
+    def pause(*args):
         if not ts.can_pause():
             print("Can't pause this stream.")
             return
@@ -324,37 +247,37 @@ def bind_keys(_turtle=turtle):
             ts.play()
         else:
             ts.pause()
-    def stop():
+    def stop(*args):
         global RUNNING
         global SAFE_EXIT
         RUNNING = False
         SAFE_EXIT = True
-    def sync():
+    def sync(*args):
         ts.sync_playback()
-    def seek_back():
+    def seek_back(*args):
         ts.rseek(-5)
-    def seek_forward():
+    def seek_forward(*args):
         ts.rseek(5)
     
-    _turtle.onkey(up_scale, "Up")
-    _turtle.onkey(down_scale, "Down")
-    _turtle.onkey(up_rps, ".")
-    _turtle.onkey(down_rps, ",")
-    _turtle.onkey(up_rpb, "'")
-    _turtle.onkey(down_rpb, ";")
-    _turtle.onkey(up_x_scale,"l")
-    _turtle.onkey(down_x_scale,"j")
-    _turtle.onkey(up_y_scale, "i")
-    _turtle.onkey(down_y_scale, "k")
-    _turtle.onkey(stop, "Escape")
-    _turtle.onkey(pause, "space")
-    _turtle.onkey(sync, "s")
-    _turtle.onkey(seek_back, "Left")
-    _turtle.onkey(seek_forward, "Right")
+    root.bind("<Key-Up>", up_scale)
+    root.bind("<Key-Down>", down_scale)
+    root.bind("<Key-.>", up_rps)
+    root.bind("<Key-,>", down_rps)
+    root.bind("<Key-'>", up_rpb)
+    root.bind("<Key-;>", down_rpb)
+    root.bind("<Key-l>", up_x_scale)
+    root.bind("<Key-j>", down_x_scale)
+    root.bind("<Key-i>", up_y_scale)
+    root.bind("<Key-k>", down_y_scale)
+    root.bind("<Key-Escape>", stop)
+    root.bind("<Key-space>", pause)
+    root.bind("<Key-s>", sync)
+    root.bind("<Key-Left>", seek_back)
+    root.bind("<Key-Right>", seek_forward)
             
 
 if __name__ == "__main__":
-    read_portion = 1.1 # Amount of full circle to read each tick
+    read_portion = 1.0 # Amount of full circle to read each tick
     angular_speed_rev_ps = 20 # Revolutions per second
 
     # Do some maths to set the bit read rate and angular speed
@@ -380,9 +303,8 @@ if __name__ == "__main__":
 
     # Setup some things
     try:
-        window, _turtle = setup()
-        bind_keys(_turtle)
-        _turtle.listen()
+        canvas = setup()
+        bind_keys(canvas.master)
     except Exception as e:
         print("Setup failed.")# Error: %s" % e)
         raise e
@@ -401,14 +323,15 @@ if __name__ == "__main__":
         # Start the timer printing thread
         tick_thr.start()
         rt.start()
-        vt.run() # Turtle can't be used in any non-main thread >:(
+        vt.run() # UI can't be used in any non-main thread >:(
         # Both threads will run indefinitely until RUNNING is set to False
     finally:
         # In case no thread was able to do this already
         RUNNING = False
         # At this point the user has stopped the program and now we are
         # wrapping things up, kill the timer threads (but also keep them alive
-        # to reference them) 
+        # to reference them)
+        canvas.master.destroy() 
         draw_times.kill()
         read_times.kill()
         wait_for_draw_times.kill()
