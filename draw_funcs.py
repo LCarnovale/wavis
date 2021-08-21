@@ -29,8 +29,8 @@ def draw_circle(canvas: tk.Canvas, data,angle=2*np.pi, start=0, radius=200,
     Returns a list of tags of all the lines drawn, and the angle of the 
     last drawn point.  
     """
-    sc_width = canvas.winfo_screenwidth()
-    sc_height = canvas.winfo_screenheight()
+    sc_width = canvas.master.winfo_width()
+    sc_height = canvas.master.winfo_height()
     n_points = len(data)
     angles = np.linspace(start, start+angle, n_points)
     data_max = max(abs(data))

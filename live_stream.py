@@ -1,10 +1,30 @@
-import pyaudio
-from stream import Stream
-import numpy as np
 import time
 
+import numpy as np
+import pyaudio
+
+from stream import Stream
+
+
 class LiveStream(Stream):
-    def __init__(self, bitrate=44100, chunk_size=1024, requested_channels=1) -> None:
+    """ Access a live source of audio such as microphone or other audio input."""
+    def __init__(self, bitrate=44100, chunk_size=1024, requested_channels=1,
+            device_index=-1) -> None:
+        """ Create a new LiveStream source. Note that in the `__init__` method,
+        the user will be prompted to specify the desired device for audio input,
+        unless `device_index` is set to a valid device index.
+        
+        `bitrate`: default 44100, sampling rate in Hz.
+        `chunk_size`: default 1024, the size of the chunk issued to the
+            pyaudio audio stream. Does not represent the fixed size of each read,
+            this is variable. Not entirely sure what different values of this will do.
+        `requested_channels`: default 1, the number of channels to request from the 
+            audio source. If 2 are requested, but the source only gives 1, then
+            that 1 will still be used. `.read()` will be able to return 1 or 2 channels
+            regardless. (See `LiveStream.read`)
+
+            
+        """
         # stream constants
         self.CHUNK = chunk_size
         self.FORMAT = pyaudio.paInt16
@@ -17,7 +37,7 @@ class LiveStream(Stream):
         # Get audio source:
         print("Getting available devices...")
         n_devs = self.p.get_device_count()
-        choice = -1
+        choice = device_index
         suggest = None
         for i in range(n_devs):
             dev = self.p.get_device_info_by_index(i)
@@ -63,6 +83,10 @@ class LiveStream(Stream):
     def read(self, chunk_size, channels=1):
         """ Returns a simulated time array and live data
         Returns 1 channel by default, if you want 2, set `channels=2`.
+
+        If the stream is only capable of 1 channel but 2 are requested, 
+        then the data will be returned in duplicate, ie as if left and right
+        channels were equal.
         """
         time_now = time.time()
 
@@ -82,6 +106,9 @@ class LiveStream(Stream):
                 data = np.array([data, data])
         return time_steps, data
     
+    # These do not cause an exception because I don't want to handle
+    # that in the main program, it's not the end of the world if
+    # nothing happens and a message just pops out.  
     def play(self):
         print("Not implemented for live stream.")
     pause = stop = sync_playback = play

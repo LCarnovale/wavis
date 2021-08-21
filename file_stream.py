@@ -3,12 +3,11 @@
 import time
 from threading import Thread
 
-import scipy.io.wavfile as wf
 import numpy as np
-
+import scipy.io.wavfile as wf
 from just_playback import Playback
-from stream import Stream
 
+from stream import Stream
 
 waiting = False
 def _wait_func(sleep_t: float, wait=False):
