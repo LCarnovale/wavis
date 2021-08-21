@@ -1,7 +1,7 @@
 *Note*: For the sake of anyone who comes across this, this is very much a side project. Please excuse the sloppy code. I will improve it when I have some time.
 
 # Introduction
-A simple multithreaded sound visualiser written in Python using Turtle. All it really 
+A simple multithreaded sound visualiser written purely in Python. All it really 
 does is wrap the waveform around a circle, but I reckon it looks pretty good.
 
 Graphics are done using Tkinter. The benefit of this is that if you can run
@@ -29,24 +29,26 @@ There are two modes of operation. With a file supplied as an argument:
 
     python wavis.py "A file.wav"
 
-_Wavis_ will play the song and have a visualiser along with it. The 
-keyboard controls below all apply. 
+_Wavis_ will play the song and visualise it. The 
+keyboard controls below all apply. Sometimes there is a slight delay in the playback which offsets it from the visualiser, press `s` to resynchronise them.
 
 ### Visualise Device Audio
 
 Without arguments, it will attempt to listen to device audio.
-You will be prompted to select a device. If you wish to use a microphone,
+You will be prompted to select a device. Audio can only be read from audio inputs, ie microphones etc. 
+If you wish to use a microphone,
 selecting one should "just work". If you want to listen to device audio,
-for Windows, you will need to use the Stereo Mix service. I assume there
+for Windows, you will need to use the Stereo Mix service. This will allow you to make the output of the 
+computer's native sound card usable as an audio input device. I assume there
 is something similar for other operating systems.   
 
 Note that by virtue of using multiple threads the program is vulnerable to hanging on some types of exceptions. Most common ones have been accounted for but it has not been extensively tested. I would be wary of changing audio output devices etc during playback (although it might work fine).
-The cleanest way to stop the program will always be pressing <kbd>Esc</kbd> with focus on the frontend graphics (Turtle) screen.
+The cleanest way to stop the program will always be pressing <kbd>Esc</kbd> with focus on the frontend screen.
 
 I have only tried it with `.wav`'s, but it could potentially work with anything that `scipy.io.wavfile.read` works with
 (this does not include mp3s).
 
-Once the program is started, the turtle display should pop up with the visualiser visualising, and playback should also begin. Sometimes there is a slight delay in the playback which offsets it from the visualiser, press `s` to resynchronise them.
+Once the program is started, the display should pop up with the visualiser visualising. 
 
 Keyboard controls:
 
