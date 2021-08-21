@@ -4,8 +4,9 @@
 A simple multithreaded sound visualiser written in Python using Turtle. All it really 
 does is wrap the waveform around a circle, but I reckon it looks pretty good.
 
-Graphics are done using Turtle. The benefit of this is that if you can run
-Python you can almost definitely run most of this program. I didn't always want to use turtle, but it's the only thing that didn't require a lot of effort for me to learn to use. Even though turtle is (very) slow, it still seems to be fast enough, at least on my laptop. 
+Graphics are done using Tkinter. The benefit of this is that if you can run
+Python you can almost definitely run most of this program. It may or may not be the fastest way to 
+draw graphics, but at least on my laptop it's leagues faster than audio can be sampled, so it's good enough. 
 The use of two threads to simultaneously read sound data and draw it on screen provides a significant performance improvement.
 
 There are a few dependencies, for playback: [just_playback](https://github.com/cheofusi/just_playback) made playback a delightfully simple process. It itself has no other dependencies, and can be pip'd:
