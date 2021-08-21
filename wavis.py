@@ -18,7 +18,11 @@ if len(sys.argv) > 1:
     audio_file = sys.argv[1]
 else:
     audio_file = None
+    
 RUNNING = False
+STEREO_MODE = False
+SAFE_EXIT = False
+
 def _wait_func(sleep_t: float, wait=True):
     """sleep for `sleep_t` seconds. if `wait=True` (default) then 
     while RUNNING, the global
@@ -59,7 +63,7 @@ def setup():
     # tk_window.overrideredirect(1)
     # window = turtle.TurtleScreen(canvas)
     window = turtle.Screen()
-    # turtle.hideturtle()
+    turtle.hideturtle()
     # t1 = turtle.getturtle()
     # t1 = window.turtles()[0]
     # t1.hideturtle()
@@ -110,14 +114,33 @@ def draw_circle(data,angle=2*np.pi, start=0, radius=200,
     y_pos = y_scale * (radii * np.sin(angles)).astype(int)
     coords = np.array([x_pos, y_pos]).T
     # turtle.up()
-    turtle.pencolor("red")
     turtle.goto(*coords[0])
     turtle.down()
     for c in coords[1:]:
         turtle.goto(*c)
     return angles[-1]
 
+def draw_stereo(left, right, scale=0.2,
+        lock=None):
+    """ Draws dots at x-y coordinates with left deflection
+    for x and right deflection for y. Distances are multiplied
+    by the global `x_scale` and `y_scale` variables as well
+    as both are multiplied by the `scale` parameter, default `0.2`.
 
+    If a `lock` method is provided, it will be called once any operations
+    directly referencing the input data are finished.
+    ie, provide the method `event.set`.
+    """
+  
+    coords = (scale * np.array([left*x_scale, right*y_scale]).T).astype(int)
+    if lock is not None:
+        lock()
+    turtle.goto(*coords[0])
+    # turtle.down()
+    for c in coords[1:]:
+        turtle.goto(*c)
+        turtle.dot(4)
+    return coords[-1]
 
 t_avgs = 10
 draw_times = TimerThread(t_avgs, name="draw_times")
@@ -137,7 +160,7 @@ def _print_times():
 
     print(f"Draw/Read/Wait for Draw/Wait for Read (ms): {a:.1f} / {b:.1f} / {c:.1f} / {d:.1f} | " \
           f"Bytes/read: {int(rt.bits_per_read)} | mrad/byte: {1e3*vt.rads_p_b:.2f} | " \
-          f"Circles/read: {int((rt.bits_per_read*vt.rads_p_b)*100/(2*np.pi))}%           ", end='\c\r')
+          f"Circles/read: {int((rt.bits_per_read*vt.rads_p_b)*100/(2*np.pi))}%           ", end='\r')
 
     ## Could use something like this:
     # from ctypes import *
@@ -171,13 +194,14 @@ draw_finish_event = Event()
 
 class VisThread(Thread):
     def __init__(self, rads_p_s, rads_p_b, radius, 
-            amp, scale, *args, **kwargs):
+            amp, scale, *args, pen_colour="red", **kwargs):
         super(VisThread, self).__init__(*args, group=None, **kwargs)
         self.rads_p_s = rads_p_s 
         self.rads_p_b = rads_p_b 
         self.radius = radius
         self.amp = amp
         self.scale = scale
+        turtle.pencolor(pen_colour)
         
     def set_rads_p_s(self, val):
         self.rads_p_s = val
@@ -199,18 +223,22 @@ class VisThread(Thread):
                 # Drawing thread is now in the process of drawing
                 turtle.clear()
                 turtle.up()
-                t_start = time_glob[0]
-                angle_start = self.rads_p_s * t_start
-                angle_end = draw_circle(audio_glob, angle=self.rads_p_b*len(audio_glob),
-                            start=angle_start, radius=self.radius, 
-                            amp=self.amp, scale=self.scale, lock=draw_finish_event.set)
+                if STEREO_MODE:
+                    draw_stereo(*audio_glob, lock=draw_finish_event.set)
+                else:
+                    t_start = time_glob[0]
+                    angle_start = self.rads_p_s * t_start
+                    angle_end = draw_circle(audio_glob[0], angle=self.rads_p_b*len(audio_glob[0]),
+                                start=angle_start, radius=self.radius, 
+                                amp=self.amp, scale=self.scale, lock=draw_finish_event.set)
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
                 # start filling the buffers for the next draw call
                 turtle.update()
-            except:
+            except Exception as e:
                 # The turtle window has probably been manually closed
                 # without use of the Escape key.
+                print("Draw failed, error: %s" % e)
                 _end_wait()
                 # Set the draw finish event so that the Reader thread doesn't hang
                 draw_finish_event.set()
@@ -235,8 +263,10 @@ class ReadThread(Thread):
             # Buffer is saying it is now 
             # in the process of being filled
             read_times.t_start()
-            
-            time, audio = self.stream.read(int(self.bits_per_read))
+            if STEREO_MODE:
+                time, audio = self.stream.read(int(self.bits_per_read), channels=2)
+            else:
+                time, audio = self.stream.read(int(self.bits_per_read), channels=1)
             
             read_times.t_stop()
             if len(time) == 0:
@@ -296,7 +326,9 @@ def bind_keys(_turtle=turtle):
             ts.pause()
     def stop():
         global RUNNING
+        global SAFE_EXIT
         RUNNING = False
+        SAFE_EXIT = True
     def sync():
         ts.sync_playback()
     def seek_back():
@@ -334,7 +366,7 @@ if __name__ == "__main__":
 
     try:
         if audio_file is None:
-            ts = LiveStream(chunk_size=bits_per_read)
+            ts = LiveStream(chunk_size=bits_per_read, requested_channels=1)
         else:
             ts = FileStream(audio_file, realtime=True)
     except Exception as e:
@@ -390,3 +422,9 @@ if __name__ == "__main__":
     print("Average time waiting for draw: " f"{wait_for_draw_times.get_avg()*1e3:.3f} ms")
     print("Average time waiting for read: " f"{wait_for_read_times.get_avg()*1e3:.3f} ms")
 
+if not SAFE_EXIT:
+    time.sleep(1) # Wait for threads to finish printing stuff
+    print()
+    input("Enter to close")
+else:
+    print()

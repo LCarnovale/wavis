@@ -4,7 +4,7 @@ import numpy as np
 import time
 
 class LiveStream(Stream):
-    def __init__(self, bitrate=44100, chunk_size=1024) -> None:
+    def __init__(self, bitrate=44100, chunk_size=1024, requested_channels=1) -> None:
         # stream constants
         self.CHUNK = chunk_size
         self.FORMAT = pyaudio.paInt16
@@ -40,13 +40,15 @@ class LiveStream(Stream):
                   "can go into any other device. (hint hint)")
             print("===================================")
             print("If you wish to visualise audio from a normal audio input (like a microphone)")
-            print("Then simply select it from below.")
+            print("Then just select it from below.")
         while (choice < 0 or choice >= n_devs):
             try:
                 choice = int(input("Select a device >>> "))
             except:
                 pass
-        print(f"Using device {choice}: " + self.p.get_device_info_by_index(choice)['name'])
+        device = self.p.get_device_info_by_index(choice)
+        print(f"Using device {choice}: " + device['name'])
+        self.CHANNELS = max(requested_channels, device['maxInputChannels'])
         
         self.stream = self.p.open(
             format=self.FORMAT,
@@ -58,8 +60,9 @@ class LiveStream(Stream):
         )
         super().__init__(bitrate=bitrate)
 
-    def read(self, chunk_size):
+    def read(self, chunk_size, channels=1):
         """ Returns a simulated time array and live data
+        Returns 1 channel by default, if you want 2, set `channels=2`.
         """
         time_now = time.time()
 
@@ -70,6 +73,13 @@ class LiveStream(Stream):
             print("Error on read - did something happen to the device?")
             print("Error:", e)
             return [], []
+        else:
+            channelled = np.array([data[i::self.CHANNELS] for i in range(self.CHANNELS)])
+            data = channelled[:channels]
+            if self.CHANNELS == 1 and channels == 2:
+                # Duplicate the single channel
+                print("Duplicating")
+                data = np.array([data, data])
         return time_steps, data
     
     def play(self):
