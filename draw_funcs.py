@@ -2,8 +2,14 @@
 import numpy as np
 import tkinter as tk
 
+import matplotlib.pyplot as plt
+from numpy.lib.function_base import hamming
+
 x_scale = 1
 y_scale = 1
+n_ham = 1 # Number of points to clamp with a Hamming filter
+ham_window = np.hamming(n_ham*2)[:n_ham]**3
+# ham_window[0] = 0
 def draw_circle(canvas: tk.Canvas, data,angle=2*np.pi, start=0, radius=200, 
         amp=20,scale=False, lock=None, fill="red"):
     """ Plot the data on a circle, spread out over the given angle.
@@ -33,26 +39,30 @@ def draw_circle(canvas: tk.Canvas, data,angle=2*np.pi, start=0, radius=200,
     sc_height = canvas.master.winfo_height()
     n_points = len(data)
     angles = np.linspace(start, start+angle, n_points)
-    data_max = max(abs(data))
+    # freqs = np.fft.fftfreq(len(data), d=1/44100) # Assume sampling rate of 44100
+    mid = n_points // 2
+    power = np.fft.fft(data)
+    power[:n_ham] *= ham_window
+    power[-n_ham:] *= ham_window[::-1]
+    # power[mid:mid-n_ham:-1] *= ham_window
+    # power[:n_ham] *= np.hamming(n_ham*2)[:n_ham]
+    data = np.fft.ifft(np.sqrt(power*np.conj(power)))
+    data[:n_ham] = data[2*n_ham:n_ham:-1]
+    data[-n_ham:] = data[-n_ham:-2*n_ham:-1]
+
     if scale == False:
+        data_max = max(abs(data))
         radii = amp * data/data_max
     else:
         radii = (scale * data)
     if lock is not None:
         lock()
     radii += radius
+    radii = np.real(radii)
     x_pos = x_scale * (radii * np.cos(angles)).astype(int) + sc_width // 2
     y_pos = y_scale * (radii * np.sin(angles)).astype(int) + sc_height // 2
-    # line_coords = np.array([x_pos[:-1], y_pos[:-1], x_pos[1:], y_pos[1:]]).T
     line_coords = np.array([x_pos, y_pos]).T
-    # turtle.up()
-    tags = np.full(n_points, None, dtype=object)
-    i = 0
     tags = canvas.create_line(*line_coords.flatten(), fill=fill)
-    # for x1, y1, x2, y2 in zip(x_pos[:-1], y_pos[:-1], x_pos[1:], y_pos[1:]):
-    #     tag = canvas.create_line(x1, y1, x2, y2, fill=fill)
-    #     tags[i] = tag
-    #     i += 1
     return tags, angles[-1]
 
 def draw_stereo(left, right, scale=0.2,
