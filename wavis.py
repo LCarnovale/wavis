@@ -26,12 +26,25 @@ def setup():
     """
     master = tk.Tk()
     master.configure(background="black")
-    width, height = 500, 500
+    width, height = 1000, 1000
     canvas = tk.Canvas(master, width=width, height=height)
     canvas.configure(bg="black")
     canvas.pack(fill='both', expand=True)
     
     return canvas
+
+_border = 1
+def toggle_border(root):
+    global _border
+    _border = 0 if _border else 1
+    root.overrideredirect(_border)
+
+_keep_on_top = False
+def _toggle_keep_on_top(root : tk.Tk):
+    global _keep_on_top
+    _keep_on_top = False if _keep_on_top else True
+    root.attributes('-topmost', _keep_on_top)
+    # helpers._keep_on_top = _keep_on_top
 
 def safe_exit():
     global SAFE_EXIT
@@ -87,7 +100,8 @@ if __name__ == "__main__":
     dont_even_bother = False
     try:
         if audio_file is None:
-            the_stream = LiveStream(chunk_size=bits_per_read, requested_channels=1,)
+            the_stream = LiveStream(chunk_size=bits_per_read, requested_channels=1,
+                device_index=-1)
         else:
             the_stream = FileStream(audio_file, realtime=True)
     except Exception as e:
@@ -107,6 +121,9 @@ if __name__ == "__main__":
             rt = ReadThread(bits_per_read, the_stream)
 
             bind_keys(canvas.master, vt, rt, df, the_stream, safe_exit)
+            # These two are new but could be moved into the bind_keys function
+            canvas.master.bind("<Key-b>", lambda x: toggle_border(canvas.master))
+            canvas.master.bind("<Key-t>", lambda x: _toggle_keep_on_top(canvas.master))
         except Exception as e:
             print("Setup failed.")# Error: %s" % e)
             raise e
@@ -145,4 +162,5 @@ if not SAFE_EXIT:
     print("") # One more for good measure
     input("Enter to close")
 else:
-    print()
+    print("")
+    print("")

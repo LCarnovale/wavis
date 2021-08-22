@@ -52,6 +52,8 @@ Keyboard controls:
 
 | Key | Function|
 |-----|---------|
+|<kbd>b</kbd> | Toggle the window border |
+|<kbd>t</kbd> | Toggle keep-on-top | 
 | <kbd>&#8592;</kbd>/<kbd>&#8594;</kbd> | Jump backward/forward 5 seconds in playback |
 |<kbd>s</kbd> | Resynchronise playback to match visualisation |
 | <kbd>space</kbd> | Pause/resume (Note for some reason playback will resume from the beginning, you can bring it back with <kbd>s</kbd>.) |

@@ -3,6 +3,7 @@ import time
 from threading import Event, Thread
 
 import numpy as np
+_keep_on_top = False
 STEREO_MODE = False
 
 class TickThread(Thread):
@@ -217,7 +218,6 @@ class VisThread(Thread):
             draw_finish_event.clear()
             try:
                 # Drawing thread is now in the process of drawing
-                self.canvas.delete('all')
                 if STEREO_MODE:
                     draw_stereo(*audio_glob, lock=draw_finish_event.set)
                 else:
@@ -230,6 +230,8 @@ class VisThread(Thread):
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
                 # start filling the buffers for the next draw call
+                # if _keep_on_top:
+                # self.canvas.master.attributes("-topmost", _keep_on_top)
                 self.canvas.master.update()
             except Exception as e:
                 # The window has probably been manually closed
