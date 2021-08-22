@@ -7,9 +7,10 @@ from numpy.lib.function_base import hamming
 
 x_scale = 1
 y_scale = 1
-n_ham = 1 # Number of points to clamp with a Hamming filter
-ham_window = np.hamming(n_ham*2)[:n_ham]**3
+_n_ham = 0.02 # Portion of signal to clamp with a Hamming filter
 # ham_window[0] = 0
+_last_tags = [None, None] # [previous, before the previous]
+up_sample_factor = 20
 def draw_circle(canvas: tk.Canvas, data,angle=2*np.pi, start=0, radius=200, 
         amp=20,scale=False, lock=None, fill="red"):
     """ Plot the data on a circle, spread out over the given angle.
@@ -35,24 +36,50 @@ def draw_circle(canvas: tk.Canvas, data,angle=2*np.pi, start=0, radius=200,
     Returns a list of tags of all the lines drawn, and the angle of the 
     last drawn point.  
     """
+    global _last_tags
     sc_width = canvas.master.winfo_width()
     sc_height = canvas.master.winfo_height()
     n_points = len(data)
+    n_ham = int(_n_ham * n_points)
+    arange = np.arange(n_points)
+    new_range = np.linspace(0, arange[-1], n_points*up_sample_factor)
+    data = np.interp(new_range, arange, data)
+    
+    # ham_window = np.hamming(n_ham*2)[:n_ham]**3
     angles = np.linspace(start, start+angle, n_points)
-    # freqs = np.fft.fftfreq(len(data), d=1/44100) # Assume sampling rate of 44100
-    mid = n_points // 2
+    freqs = np.fft.fftfreq(len(data), d=1/44100) # Assume sampling rate of 44100
+    # with np.errstate(divide='ignore'):
+    #     period = np.where(freqs!=0, 1/freqs, 0)
+    # pihalf = period / 4
+    # mid = n_points // 2
     power = np.fft.fft(data)
-    power[:n_ham] *= ham_window
-    power[-n_ham:] *= ham_window[::-1]
+    # power[:n_ham] *= ham_window
+    # power[-n_ham:] *= ham_window[::-1]
     # power[mid:mid-n_ham:-1] *= ham_window
     # power[:n_ham] *= np.hamming(n_ham*2)[:n_ham]
-    data = np.fft.ifft(np.sqrt(power*np.conj(power)))
-    data[:n_ham] = data[2*n_ham:n_ham:-1]
-    data[-n_ham:] = data[-n_ham:-2*n_ham:-1]
+    power_mod = np.sqrt(power*np.conj(power))
+    # power_mod *= np.exp(pihalf*1j) # Give a little phase so that 
+                                # all freqs don't stack on eachother at the origin 
+    # power_mod = power.real
+    
+    data = np.fft.ifft(power_mod)
+    new_selection = np.linspace(
+        n_ham*up_sample_factor, 
+        (n_points - n_ham)*up_sample_factor, 
+        n_points, dtype=int
+    )
+    data = data[new_selection]
+    # data[:n_ham] *= ham_window
+    # data[-n_ham:] *= ham_window[::-1]
+    # data[:n_ham] = data[2*n_ham:n_ham:-1]
+    # data[-n_ham:] = data[-n_ham:-2*n_ham:-1]
 
     if scale == False:
         data_max = max(abs(data))
-        radii = amp * data/data_max
+        if data_max != 0:
+            radii = amp * data/data_max
+        else:
+            radii = data
     else:
         radii = (scale * data)
     if lock is not None:
@@ -62,7 +89,14 @@ def draw_circle(canvas: tk.Canvas, data,angle=2*np.pi, start=0, radius=200,
     x_pos = x_scale * (radii * np.cos(angles)).astype(int) + sc_width // 2
     y_pos = y_scale * (radii * np.sin(angles)).astype(int) + sc_height // 2
     line_coords = np.array([x_pos, y_pos]).T
+
+    if _last_tags[1]:
+        canvas.delete(_last_tags[1])
+    # if _last_tags[1]:
+    #     canvas.itemconfig(_last_tags[1], )
     tags = canvas.create_line(*line_coords.flatten(), fill=fill)
+
+    _last_tags[1] = tags
     return tags, angles[-1]
 
 def draw_stereo(left, right, scale=0.2,
