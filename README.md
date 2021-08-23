@@ -1,6 +1,6 @@
 # Introduction
-A simple multithreaded sound visualiser written purely in Python. All it really 
-does is wrap the waveform around a circle, but I reckon it looks pretty good.
+A simple multithreaded sound visualiser written purely in Python. 
+The pattern is the reconstructed waveform after removal of phase information. 
 
 Graphics are done using Tkinter. The benefit of this is that if you can run
 Python you can almost definitely run most of this program. It may or may not be the fastest way to 
@@ -69,7 +69,7 @@ and the time those two threads spent waiting for the other. If you get low
 framerates, you can usually speed it up by decreasing the number of bytes read in each tick (<kbd>,</kbd>), and if that ends up looking too jagged on the front you can try stretch out the arcs with <kbd>'</kbd>.
 
 # Example
-The last minute or so of Flume - Helix:
+The first minute or so of Tonight, Tonight by The Smashing Pumpkins:
 ![Visualisation GIF](./Animation.gif)
 
 Included in the repository is a sample royalty free audio file
