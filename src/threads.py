@@ -137,9 +137,9 @@ class ReadThread(Thread):
     wait_for_draw_times = TimerThread(t_avgs, name="wait_for_draw_times")
     wait_for_draw_times.start()
 
-    def __init__(self, bits_per_read, stream, *args, **kwargs):#group: None, target: Callable[..., Any] | None, name: str | None, args: Iterable[Any], kwargs: Mapping[str, Any] | None, *, daemon: bool | None) -> None:
+    def __init__(self, bits_per_read, stream, *args, **kwargs):
         global RUNNING
-        super().__init__(*args, group=None, **kwargs)#group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
+        super().__init__(*args, group=None, **kwargs)
         self.bits_per_read = bits_per_read
         self.stream = stream
         buffer_fill_event.clear() # Buffer is not filled to begin with
@@ -225,13 +225,6 @@ class VisThread(Thread):
             draw_finish_event.clear()
             try:
                 # Drawing thread is now in the process of drawing
-                # if STEREO_MODE and False:
-                #     draw_stereo(*audio_glob, lock=draw_finish_event.set)
-                # if len(audio_glob) > 1:
-                    # We have stereo audio
-                #     stereo_mode = "combine"
-                # else:
-                #     stereo_mode = "mono"
                 t_start = time_glob[0]
                 # angle_start = self.rads_p_s * t_start
                 tags, angle_end = draw_circle(self.canvas, audio_glob, angle=self.rads_p_b*len(audio_glob[0]),
@@ -241,8 +234,6 @@ class VisThread(Thread):
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
                 # start filling the buffers for the next draw call
-                # if _keep_on_top:
-                # self.canvas.master.attributes("-topmost", _keep_on_top)
                 self.canvas.master.update()
             except Exception as e:
                 # The window has probably been manually closed
