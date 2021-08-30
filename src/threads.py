@@ -1,4 +1,4 @@
-from draw_funcs import draw_circle, draw_stereo
+from .draw_funcs import draw_circle, draw_stereo
 import time
 from threading import Event, Thread
 
@@ -6,6 +6,7 @@ import numpy as np
 _keep_on_top = False
 STEREO_MODE = False
 
+_thread_instances = []
 class TickThread(Thread):
     def __init__(self, delay, on_tick, *args, **kwargs):
         """ Once started, this thread will sleep for `delay` seconds, then call `on_tick`,
@@ -16,6 +17,7 @@ class TickThread(Thread):
         self.delay = delay
         self.on_tick = on_tick
         self.stopped = False
+        _thread_instances.append(self)
 
     def run(self):
         while True:
@@ -24,12 +26,12 @@ class TickThread(Thread):
             time.sleep(self.delay)
             self.on_tick()
 
-    def stop(self):
+    def kill(self):
         """ The thread will exit on the next tick, without calling the on_tick function."""
         self.stopped = True
+    
 
 _instance_count = 1
-_clock_threads = []
 class TimerThread(Thread):
     """ A helper class to asynchronously time operations and keep a running average."""
     _clocks_enabled = True
@@ -48,7 +50,7 @@ class TimerThread(Thread):
         self.timerStopped = Event()
         self.timerStopped.clear()
         self._start = 0 # If you call stop before start expect a big time
-        _clock_threads.append(self)
+        _thread_instances.append(self)
 
     # This could well be just a standard attribute but it is technically possible
     # for an external object to change self.array to one of a different size,
@@ -63,12 +65,6 @@ class TimerThread(Thread):
         end their threads, it just makes calls to `t_start` and 
         `t_stop` immediately return."""
         TimerThread._clocks_enabled = False
-
-    def kill_all_clocks():
-        """ Kill all clock threads. Static, can not be called from
-        an instance."""
-        for clock in _clock_threads:
-            clock.kill()
 
     def t_start(self):
         """ Start the timer. When the timer is stopped with `.t_stop()`
@@ -125,30 +121,29 @@ def _end_wait(*args):
     global RUNNING
     RUNNING = False
 
-t_avgs = 10
-draw_times = TimerThread(t_avgs, name="draw_times")
-draw_times.start()
-read_times = TimerThread(t_avgs, name="read_times")
-read_times.start()
-wait_for_draw_times = TimerThread(t_avgs, name="wait_for_draw_times")
-wait_for_draw_times.start()
-wait_for_read_times = TimerThread(t_avgs, name="wait_for_read_times")
-wait_for_read_times.start()
 
 
 RUNNING = False
 
-time_glob = None
-audio_glob = None
-buffer_fill_event = Event()
-draw_finish_event = Event()
+t_avgs = 10 # Number of values to take to calculate averages 
+time_glob = None # Time data global buffer
+audio_glob = None # Audio data global buffer
+buffer_fill_event = Event() # Events for each thread to tell the other  
+draw_finish_event = Event() # it is ready for or done with input
+
 class ReadThread(Thread):
+    read_times = TimerThread(t_avgs, name="read_times")
+    read_times.start()
+    wait_for_draw_times = TimerThread(t_avgs, name="wait_for_draw_times")
+    wait_for_draw_times.start()
+
     def __init__(self, bits_per_read, stream, *args, **kwargs):#group: None, target: Callable[..., Any] | None, name: str | None, args: Iterable[Any], kwargs: Mapping[str, Any] | None, *, daemon: bool | None) -> None:
         global RUNNING
         super().__init__(*args, group=None, **kwargs)#group=group, target=target, name=name, args=args, kwargs=kwargs, daemon=daemon)
         self.bits_per_read = bits_per_read
         self.stream = stream
         buffer_fill_event.clear() # Buffer is not filled to begin with
+        _thread_instances.append(self)
     
     def run(self):
         global time_glob
@@ -157,24 +152,24 @@ class ReadThread(Thread):
             buffer_fill_event.clear()
             # Buffer is saying it is now 
             # in the process of being filled
-            read_times.t_start()
-            if STEREO_MODE:
+            self.read_times.t_start()
+            if STEREO_MODE != "mono":
                 time, audio = self.stream.read(int(self.bits_per_read), channels=2)
             else:
                 time, audio = self.stream.read(int(self.bits_per_read), channels=1)
             
-            read_times.t_stop()
+            self.read_times.t_stop()
             if len(time) == 0:
                 print("\nStream ended.")
                 # The sound has run out.
                 _end_wait()
                 break
 
-            wait_for_draw_times.t_start()
+            self.wait_for_draw_times.t_start()
             # We now wait for the drawing thread to take the data before we can fill
             # the global buffers with new data.
             draw_finish_event.wait()
-            wait_for_draw_times.t_stop()
+            self.wait_for_draw_times.t_stop()
             time_glob = time
             audio_glob = audio
 
@@ -183,8 +178,19 @@ class ReadThread(Thread):
 
         buffer_fill_event.set()
         self.stream.stop()
+
+    def kill(self):
+        # The only safe way to do this is to set RUNNING = False 
+        # and wait for both threads to finish.
+        _end_wait()
+
     
 class VisThread(Thread):
+    draw_times = TimerThread(t_avgs, name="draw_times")
+    draw_times.start()
+    wait_for_read_times = TimerThread(t_avgs, name="wait_for_read_times")
+    wait_for_read_times.start()
+
     def __init__(self, canvas, rads_p_s, rads_p_b, radius, 
             amp, scale, *args, pen_colour="red", **kwargs):
         super(VisThread, self).__init__(*args, group=None, **kwargs)
@@ -196,6 +202,7 @@ class VisThread(Thread):
         self.scale = scale
         self.pen_colour = pen_colour
         draw_finish_event.set() # Reading can start straight away, but drawing can not
+        _thread_instances.append(self)
         
     def set_rads_p_s(self, val):
         self.rads_p_s = val
@@ -209,24 +216,28 @@ class VisThread(Thread):
         while RUNNING:
             # This thread usually has some time to kill, so use it to resize 
             # the canvas.
-            wait_for_read_times.t_start()
+            self.wait_for_read_times.t_start()
             # Wait for buffers to be written too
             buffer_fill_event.wait()
-            wait_for_read_times.t_stop()
+            self.wait_for_read_times.t_stop()
 
-            draw_times.t_start()
+            self.draw_times.t_start()
             draw_finish_event.clear()
             try:
                 # Drawing thread is now in the process of drawing
-                if STEREO_MODE:
-                    draw_stereo(*audio_glob, lock=draw_finish_event.set)
-                else:
-                    t_start = time_glob[0]
-                    # angle_start = self.rads_p_s * t_start
-                    tags, angle_end = draw_circle(self.canvas, audio_glob[0], angle=self.rads_p_b*len(audio_glob[0]),
-                                start=angle_end, radius=self.radius, 
-                                amp=self.amp, scale=self.scale, lock=draw_finish_event.set,
-                                fill=self.pen_colour)
+                # if STEREO_MODE and False:
+                #     draw_stereo(*audio_glob, lock=draw_finish_event.set)
+                # if len(audio_glob) > 1:
+                    # We have stereo audio
+                #     stereo_mode = "combine"
+                # else:
+                #     stereo_mode = "mono"
+                t_start = time_glob[0]
+                # angle_start = self.rads_p_s * t_start
+                tags, angle_end = draw_circle(self.canvas, audio_glob, angle=self.rads_p_b*len(audio_glob[0]),
+                            start=angle_end, radius=self.radius, 
+                            amp=self.amp, scale=self.scale, lock=draw_finish_event.set,
+                            fill=self.pen_colour, stereo_mode=STEREO_MODE,)
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
                 # start filling the buffers for the next draw call
@@ -237,17 +248,32 @@ class VisThread(Thread):
                 # The window has probably been manually closed
                 # without use of the Escape key.
                 print("Draw failed, error: %s" % e)
-                _end_wait()
+                _end_wait() # End wait will set RUNNING to False, ending the parent while loop
                 # Set the draw finish event so that the Reader thread doesn't hang
                 draw_finish_event.set()
                 break  
             finally:
-                draw_times.t_stop()
+                self.draw_times.t_stop()
         draw_finish_event.set()
-    
-def kill_all():
-    draw_times.kill()
-    read_times.kill()
-    wait_for_draw_times.kill()
-    wait_for_read_times.kill()
-    TimerThread.kill_all_clocks()
+
+
+    def kill(self):
+        # The only safe way to do this is to set RUNNING = False 
+        # and wait for both threads to finish.
+        _end_wait()
+
+
+def kill_all(of_type=object):
+    """ By default calls .kill() on all instances of the classes defined in 
+    this module. If a type is provided, then only instances of that type
+    are killed. Currently the types from this module are:
+    ```
+        TimerThread
+        ClockThread
+        VisThread
+        ReadThread
+    ``` 
+    See `src.threads` for a complete list."""
+    for x in _thread_instances:
+        if isinstance(x, of_type):
+            x.kill()

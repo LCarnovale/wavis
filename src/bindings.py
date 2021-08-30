@@ -1,15 +1,25 @@
 from tkinter import Tk
 from types import ModuleType
 from typing import Callable
-from helpers import ReadThread, VisThread
-from stream import Stream
+from .threads import ReadThread, VisThread
+from .stream import Stream
 
-def bind_keys(root : Tk, vis_thread : VisThread, read_thread : ReadThread, draw_func_module : ModuleType,
-        stream : Stream, exit_func : Callable):
+_border = 0
+_keep_on_top = False
+def bind_keys(root : Tk, vis_thread: VisThread, read_thread: ReadThread, draw_func_module: ModuleType,
+        stream: Stream, exit_func: Callable):
     vt = vis_thread
     rt = read_thread
     df = draw_func_module
     the_stream = stream
+    def toggle_border(*args):
+        global _border
+        _border = 0 if _border else 1
+        root.overrideredirect(_border)
+    def toggle_keep_on_top(*args):
+        global _keep_on_top
+        _keep_on_top = False if _keep_on_top else True
+        root.attributes('-topmost', _keep_on_top)
     def up_scale(*args):
         vt.scale *= 1.05
     def down_scale(*args):
@@ -23,16 +33,12 @@ def bind_keys(root : Tk, vis_thread : VisThread, read_thread : ReadThread, draw_
     def down_rpb(*args):
         vt.rads_p_b /= 1.05
     def up_x_scale(*args):
-        # global df.x_scale
         df.x_scale *= 1.05
     def down_x_scale(*args):
-        # global df.x_scale
         df.x_scale /= 1.05
     def up_y_scale(*args):
-        # global df.y_scale
         df.y_scale *= 1.05
     def down_y_scale(*args):
-        # global df.y_scale
         df.y_scale /= 1.05
     def pause(*args):
         if not the_stream.can_pause():
@@ -66,4 +72,7 @@ def bind_keys(root : Tk, vis_thread : VisThread, read_thread : ReadThread, draw_
     root.bind("<Key-s>", sync)
     root.bind("<Key-Left>", seek_back)
     root.bind("<Key-Right>", seek_forward)
+    root.bind("<Key-b>", toggle_border)
+    root.bind("<Key-t>", toggle_keep_on_top)
+
             

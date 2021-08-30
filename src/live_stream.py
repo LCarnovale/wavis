@@ -3,7 +3,7 @@ import time
 import numpy as np
 import pyaudio
 
-from stream import Stream
+from .stream import Stream
 
 
 class LiveStream(Stream):
