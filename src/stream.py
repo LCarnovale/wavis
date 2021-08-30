@@ -15,4 +15,5 @@ class Stream:
         """
         pass 
     def stop(self): pass
+    def close(self): pass
         

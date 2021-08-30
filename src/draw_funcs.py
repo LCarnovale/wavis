@@ -54,7 +54,6 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
     n_ham = int(_n_ham * n_points)
     arange = np.arange(n_points)
     new_range = np.linspace(0, arange[-1], n_points*up_sample_factor)
-    # mid = n_points // 2
     if stereo_mode in ("split", "combine"):
         data_left = np.interp(new_range, arange, data[0])
         data_right = np.interp(new_range, arange, data[1])
@@ -63,13 +62,9 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
     else:
         raise ValueError('Invalid option %s for stereo_mode, must be `mono`, `combine` or `split`.' % stereo_mode)
 
+    if lock is not None:
+        lock()
     
-    
-    # ham_window = np.hamming(n_ham*2)[:n_ham]**3
-    freqs = np.fft.fftfreq(len(data), d=1/44100) # Assume sampling rate of 44100
-    # with np.errstate(divide='ignore'):
-    #     period = np.where(freqs!=0, 1/freqs, 0)
-    # pihalf = period / 4
     if stereo_mode != "mono":
         power_left = np.fft.fft(data_left)
         power_right = np.fft.fft(data_right)
@@ -86,30 +81,14 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
 
     if stereo_mode in ("mono", "combine"):
         n = len(mod)
-        # mod[:n//2] *= np.exp(1j * np.pi)
-        # mod[n//2+1:] *= np.exp(-1j * np.pi/2)
-        # big_range = np.arange(n)
-        # freqs = np.fft.fftfreq(n)
-        # freqs_T = freqs.reshape(-1,1)
-        # freq_grid = freqs_T*big_range
-        # data = np.sum(mod*(np.cos(freq_grid) - np.exp(-1/2*(freq_grid)**2)), axis=0)
         data = np.fft.ifft(mod)
-        # line = np.linspace(data[0], data[-1], n)
-
-        # data += data[::-1]
     elif stereo_mode == "split":
         data_left = np.fft.ifft(left_mod)
         data_right = np.fft.ifft(right_mod)
         mid = len(data_left) // 2
         data_right[mid:] = data_left[mid:]
         data = data_right
-    # power[:n_ham] *= ham_window
-    # power[-n_ham:] *= ham_window[::-1]
-    # power[mid:mid-n_ham:-1] *= ham_window
-    # power[:n_ham] *= np.hamming(n_ham*2)[:n_ham]
-    # power_mod *= np.exp(pihalf*1j) # Give a little phase so that 
-                                # all freqs don't stack on eachother at the origin 
-    # power_mod = power.real
+
     
     new_selection = np.linspace(
         n_ham*up_sample_factor, 
@@ -117,10 +96,6 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
         n_points, dtype=int
     )
     data = data[new_selection]
-    # data[:n_ham] *= ham_window
-    # data[-n_ham:] *= ham_window[::-1]
-    # data[:n_ham] = data[2*n_ham:n_ham:-1]
-    # data[-n_ham:] = data[-n_ham:-2*n_ham:-1]
 
     # Apply tension to signal
     n = len(data)
@@ -143,8 +118,7 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
             radii = data
     else:
         radii = (scale * data)
-    if lock is not None:
-        lock()
+
     radii += radius
     radii = np.real(radii)
     x_pos = x_scale * (radii * np.cos(angles)).astype(int) + sc_width // 2
@@ -154,8 +128,10 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
     if _last_tags[1]:
         # Remove old line from screen
         canvas.delete(_last_tags[1])
-    # if _last_tags[1]:
-    #     canvas.itemconfig(_last_tags[1], )
+
+    # This could be used to let lines fade out as a different colour etc.
+    # if _last_tags[0]:
+    #     canvas.itemconfig(_last_tags[0], fill="dark red")
     tags = canvas.create_line(*line_coords.flatten(), fill=fill)
 
     _last_tags[1] = tags
@@ -173,13 +149,3 @@ def draw_stereo(left, right, scale=0.2,
     ie, provide the method `event.set`.
     """
     raise NotImplementedError("Not done yet")
-  
-    # coords = (scale * np.array([left*x_scale, right*y_scale]).T).astype(int)
-    # if lock is not None:
-    #     lock()
-    # turtle.goto(*coords[0])
-    # # turtle.down()
-    # for c in coords[1:]:
-    #     turtle.goto(*c)
-    #     turtle.dot(4)
-    # return coords[-1]

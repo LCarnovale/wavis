@@ -93,7 +93,7 @@ if __name__ == "__main__":
     try:
         if audio_file is None:
             the_stream = LiveStream(chunk_size=bits_per_read, requested_channels=2,
-                device_index=-1)
+                device_index=index_choice)
         else:
             the_stream = FileStream(audio_file, realtime=True)
     except Exception as e:
@@ -101,6 +101,10 @@ if __name__ == "__main__":
         print("Error:", e)
         threads.kill_all() 
         # Don't even bother trying to start the rest of the program
+        try:
+            the_stream.close()
+        except:
+            pass
         dont_even_bother = True
 
     # Setup some things
@@ -139,10 +143,10 @@ if __name__ == "__main__":
                 # The user probably clicked the X button on the window.
                 pass
 
-        print("Average time for draw:         " f"{threads.draw_times.get_avg()*1e3:.3f} ms") 
-        print("Average time for read:         " f"{threads.read_times.get_avg()*1e3:.3f} ms") 
-        print("Average time waiting for draw: " f"{threads.wait_for_draw_times.get_avg()*1e3:.3f} ms")
-        print("Average time waiting for read: " f"{threads.wait_for_read_times.get_avg()*1e3:.3f} ms")
+        print("Average time for draw:         " f"{vt.draw_times.get_avg()*1e3:.3f} ms") 
+        print("Average time for read:         " f"{rt.read_times.get_avg()*1e3:.3f} ms") 
+        print("Average time waiting for draw: " f"{rt.wait_for_draw_times.get_avg()*1e3:.3f} ms")
+        print("Average time waiting for read: " f"{vt.wait_for_read_times.get_avg()*1e3:.3f} ms")
 
 if not SAFE_EXIT:
     time.sleep(1.2) # Wait for threads to finish printing stuff

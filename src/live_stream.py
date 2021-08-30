@@ -22,6 +22,9 @@ class LiveStream(Stream):
             audio source. If 2 are requested, but the source only gives 1, then
             that 1 will still be used. `.read()` will be able to return 1 or 2 channels
             regardless. (See `LiveStream.read`)
+        `device_index`: If provided, this device will attempted to be loaded as
+            an audio source. If it fails, or if this value is not provided,
+            the user will be prompted to select one.
 
             
         """
@@ -36,49 +39,69 @@ class LiveStream(Stream):
         print("Loading pyAudio...")
         self.p = pyaudio.PyAudio()
         # Get audio source:
-        print("Getting available devices...")
-        n_devs = self.p.get_device_count()
-        choice = device_index
-        suggest = None
-        for i in range(n_devs):
-            dev = self.p.get_device_info_by_index(i)
-            if dev['maxInputChannels'] != 0:
-                # print("* ", end='')
-                print(f"{i: 2d}) {dev['name']}")
-            if "Stereo Mix" in dev['name'] and suggest is None:
-                # Should probably pick this
-                suggest = i
-        
-        self.CHANNELS = 1
-        if suggest is not None:
-            print("Suggested device: ", suggest)
-        else:
-            print("============== Note ===============")
-            print("If you wish to visualise device output, enable the Stereo Mixer (on Windows).\n"\
-                  "This will probably also require that sound is coming from the device card,\n"\
-                  "ie the computer's speakers, or an audio jack. It can't go into an external\n"\
-                  "device, such as a bluetooth device. However, the audio of the Stereo Mixer \n" \
-                  "can go into any other device. (hint hint)")
-            print("===================================")
-            print("If you wish to visualise audio from a normal audio input (like a microphone)")
-            print("Then just select it from below.")
-        while (choice < 0 or choice >= n_devs):
+        if device_index >= 0:
             try:
-                choice = int(input("Select a device >>> "))
-            except:
-                pass
-        device = self.p.get_device_info_by_index(choice)
-        print(f"Using device {choice}: " + device['name'])
-        self.CHANNELS = max(requested_channels, device['maxInputChannels'])
+                device = self.p.get_device_info_by_index(device_index)
+                print(f"Using device {device_index}: " + device['name'])
+                self.CHANNELS = max(requested_channels, device['maxInputChannels'])
+                self.stream = self.p.open(
+                    format=self.FORMAT,
+                    channels=self.CHANNELS,
+                    rate=self.RATE,
+                    input=True,
+                    input_device_index=device_index,
+                    frames_per_buffer=self.CHUNK,
+                )
+            except Exception as e:
+                print("Opening device index %d failed: "%device_index + str(e))
+                skip_prompt = False
+            else:
+                skip_prompt = True
+        if not skip_prompt:
+            print("Getting available devices...")
+            n_devs = self.p.get_device_count()
+            choice = device_index
+            suggest = None
+
+            for i in range(n_devs):
+                dev = self.p.get_device_info_by_index(i)
+                if dev['maxInputChannels'] != 0:
+                    # print("* ", end='')
+                    print(f"{i: 2d}) {dev['name']}")
+                if "Stereo Mix" in dev['name'] and suggest is None:
+                    # Should probably pick this
+                    suggest = i
+            
+            self.CHANNELS = 1
+            if suggest is not None:
+                print("Suggested device: ", suggest)
+            else:
+                print("============== Note ===============")
+                print("If you wish to visualise device output, enable the Stereo Mixer (on Windows).\n"\
+                    "This will probably also require that sound is coming from the device card,\n"\
+                    "ie the computer's speakers, or an audio jack. It can't go into an external\n"\
+                    "device, such as a bluetooth device. However, the audio of the Stereo Mixer \n" \
+                    "can go into any other device. (hint hint)")
+                print("===================================")
+                print("If you wish to visualise audio from a normal audio input (like a microphone)")
+                print("Then just select it from below.")
+            while (choice < 0 or choice >= n_devs):
+                try:
+                    choice = int(input("Select a device >>> "))
+                except:
+                    pass
+            device = self.p.get_device_info_by_index(choice)
+            print(f"Using device {choice}: " + device['name'])
+            self.CHANNELS = max(requested_channels, device['maxInputChannels'])
         
-        self.stream = self.p.open(
-            format=self.FORMAT,
-            channels=self.CHANNELS,
-            rate=self.RATE,
-            input=True,
-            input_device_index=choice,
-            frames_per_buffer=self.CHUNK,
-        )
+            self.stream = self.p.open(
+                format=self.FORMAT,
+                channels=self.CHANNELS,
+                rate=self.RATE,
+                input=True,
+                input_device_index=choice,
+                frames_per_buffer=self.CHUNK,
+            )
         super().__init__(bitrate=bitrate)
 
     def read(self, chunk_size, channels=1):
@@ -119,3 +142,6 @@ class LiveStream(Stream):
 
     def can_pause(self):
         return False
+
+    def close(self):
+        self.stream.close()
