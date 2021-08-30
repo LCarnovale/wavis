@@ -41,8 +41,9 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
     """
     global _last_tags
     global _last_signal
-    sc_width = canvas.master.winfo_width()
-    sc_height = canvas.master.winfo_height()
+    sc_width = canvas.winfo_width()
+    sc_height = canvas.winfo_height()
+    
     if len(data) <= 2 and stereo_mode == "mono":
         # Be prepared for data being either just the mono array or [the mono array, and maybe a misplaced other channel]
         data = data[0]

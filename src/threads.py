@@ -227,8 +227,9 @@ class VisThread(Thread):
                 # Drawing thread is now in the process of drawing
                 t_start = time_glob[0]
                 # angle_start = self.rads_p_s * t_start
+                radius = 0.8 * min(self.canvas.winfo_width(), self.canvas.winfo_height()) / 2
                 tags, angle_end = draw_circle(self.canvas, audio_glob, angle=self.rads_p_b*len(audio_glob[0]),
-                            start=angle_end, radius=self.radius, 
+                            start=angle_end, radius=radius, 
                             amp=self.amp, scale=self.scale, lock=draw_finish_event.set,
                             fill=self.pen_colour, stereo_mode=STEREO_MODE,)
                 # The above method will call draw_finish_event.set() when it is done with 
