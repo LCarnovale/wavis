@@ -136,3 +136,6 @@ class FileStream(Stream):
         self.playback.stop()
         RUNNING = False
 
+    def close(self):
+        self.stop()
+        self.clock_thr.kill()

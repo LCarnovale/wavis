@@ -3,18 +3,15 @@ from typing import Literal
 import numpy as np
 import tkinter as tk
 
-import matplotlib.pyplot as plt
-from numpy.lib.function_base import hamming
+# import matplotlib.pyplot as plt
 
-x_scale = 1
-y_scale = 1
 _n_ham = 0.02 # Portion of signal to clamp with a Hamming filter
 # ham_window[0] = 0
 _last_tags = [None, None] # [previous, before the previous]
 up_sample_factor = 1
 _last_signal = []
 def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200, 
-        amp=20,scale=False, lock=None, fill="red", 
+        amp=20,scale=False, lock=None, fill="red", x_scale=1, y_scale=1,
         stereo_mode:Literal["mono", "combine", "split"]="mono"):
     """ Plot the data on a circle, spread out over the given angle.
     Give `angle=2*pi` (default) for a full circle. 
@@ -114,11 +111,11 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
     if scale == False:
         data_max = max(abs(data))
         if data_max != 0:
-            radii = amp * data/data_max
+            radii = data/data_max
         else:
             radii = data
     else:
-        radii = (scale * data)
+        radii = amp * scale * data
 
     radii += radius
     radii = np.real(radii)

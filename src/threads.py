@@ -132,9 +132,9 @@ buffer_fill_event = Event() # Events for each thread to tell the other
 draw_finish_event = Event() # it is ready for or done with input
 
 class ReadThread(Thread):
-    read_times = TimerThread(t_avgs, name="read_times")
+    read_times = TimerThread(t_avgs, name="read times")
     read_times.start()
-    wait_for_draw_times = TimerThread(t_avgs, name="wait_for_draw_times")
+    wait_for_draw_times = TimerThread(t_avgs, name="wait for draw times")
     wait_for_draw_times.start()
 
     def __init__(self, bits_per_read, stream, *args, **kwargs):
@@ -186,29 +186,32 @@ class ReadThread(Thread):
 
     
 class VisThread(Thread):
-    draw_times = TimerThread(t_avgs, name="draw_times")
+    draw_times = TimerThread(t_avgs, name="draw times")
     draw_times.start()
-    wait_for_read_times = TimerThread(t_avgs, name="wait_for_read_times")
+    wait_for_read_times = TimerThread(t_avgs, name="wait for read times")
     wait_for_read_times.start()
+    fps_timer = TimerThread(t_avgs, name="FPS timer")
+    fps_timer.start()
 
-    def __init__(self, canvas, rads_p_s, rads_p_b, radius, 
-            amp, scale, *args, pen_colour="red", **kwargs):
+    def __init__(self, root, rads_p_read, 
+            amp, *args, pen_colour="red", **kwargs):
         super(VisThread, self).__init__(*args, group=None, **kwargs)
-        self.canvas = canvas
-        self.rads_p_s = rads_p_s 
-        self.rads_p_b = rads_p_b 
-        self.radius = radius
+        self.root = root
+        self.canvas = root.canvas
+        self.rads_p_read = rads_p_read 
+        # self.rads_p_b = rads_p_b 
         self.amp = amp
-        self.scale = scale
+        self.x_scale = 1
+        self.y_scale = 1
         self.pen_colour = pen_colour
         draw_finish_event.set() # Reading can start straight away, but drawing can not
         _thread_instances.append(self)
         
-    def set_rads_p_s(self, val):
-        self.rads_p_s = val
+    # def set_rads_p_s(self, val):
+    #     self.rads_p_s = val
 
-    def set_rads_p_b(self, val):
-        self.rads_p_b = val
+    # def set_rads_p_b(self, val):
+    #     self.rads_p_b = val
 
     def run(self):
         angle_end = 0
@@ -228,14 +231,18 @@ class VisThread(Thread):
                 t_start = time_glob[0]
                 # angle_start = self.rads_p_s * t_start
                 radius = 0.8 * min(self.canvas.winfo_width(), self.canvas.winfo_height()) / 2
-                tags, angle_end = draw_circle(self.canvas, audio_glob, angle=self.rads_p_b*len(audio_glob[0]),
-                            start=angle_end, radius=radius, 
-                            amp=self.amp, scale=self.scale, lock=draw_finish_event.set,
-                            fill=self.pen_colour, stereo_mode=STEREO_MODE,)
+                tags, angle_end = draw_circle(self.canvas, audio_glob, angle=self.rads_p_read,
+                    start=angle_end, radius=radius, amp=self.root.amplitude, 
+                    lock=draw_finish_event.set, scale=0.003,
+                    x_scale=self.x_scale, y_scale=self.y_scale,
+                    fill=self.pen_colour, stereo_mode=STEREO_MODE,
+                )
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
                 # start filling the buffers for the next draw call
-                self.canvas.master.update()
+                self.root.do_update()
+                self.fps_timer.t_stop()
+                self.fps_timer.t_start()
             except Exception as e:
                 # The window has probably been manually closed
                 # without use of the Escape key.

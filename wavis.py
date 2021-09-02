@@ -1,3 +1,6 @@
+from src.threads import STEREO_MODE
+from app import WavisApp
+from src.stream import Stream
 import sys
 import time
 import tkinter as tk
@@ -24,38 +27,16 @@ audio_file = args.file
 
 
 
-def setup():
-    """ Initialises front end and returns a handle for the canvas.
-    """
-    master = tk.Tk()
-    master.configure(background="black")
-    width, height = 1000, 1000
-    canvas = tk.Canvas(master, width=width, height=height)
-    canvas.configure(bg="black")
-    canvas.pack(fill='both', expand=True)
-    
-    return canvas
 
+# If the program stops unexpectedly, keep the console open
+# so that errors can be seen. If the user intentionally ends the program,
+# set this to True before ending this program.
+SAFE_EXIT = False
 
-
-
-def safe_exit():
+def safely_exit():
     global SAFE_EXIT
     SAFE_EXIT = True
-    threads._end_wait()
-
-
-# def _print_times():
-#     # Note: All these timer objects are defined in threads.py
-#     a = threads.audio_globdraw_times.get_avg() * 1e3
-#     b = threads.read_times.get_avg() * 1e3
-#     c = threads.wait_for_draw_times.get_avg() * 1e3
-#     d = threads.wait_for_read_times.get_avg() * 1e3
-
-#     print(f"Draw/Read/Wait Draw/Wait Read (ms): {a:.1f} / {b:.1f} / {c:.1f} / {d:.1f} | " \
-#           f"Bytes/read: {int(rt.bits_per_read)} | mrad/byte: {1e3*vt.rads_p_b:.2f} | " \
-#           f"Circles/read: {int((rt.bits_per_read*vt.rads_p_b)*100/(2*np.pi))}%  ", end='\r')
-
+    threads.kill_all()
 
 
 if __name__ == "__main__":
@@ -70,30 +51,27 @@ if __name__ == "__main__":
 
     threads.STEREO_MODE = args.stereo_mode
 
-    # If the program stops unexpectedly, it will keep the console open
-    # so that errors can be seen. If the user intentionally ends the program,
-    # set this to True before ending this program.
-    SAFE_EXIT = False
     # With lots of threads running we need to keep track of all of them 
     # and if the main one crashes, don't let the program hang waiting for
     # the others.  
 
     # If we get to this point, we at least know the imports worked,
     # so no need to try-except these lines.
-    read_portion = 1.0 # Amount of full circle to read each tick
-    angular_speed_rev_ps = 20 # Revolutions per second
+    # read_portion = 1.0 # Amount of full circle to read each tick
+    # angular_speed_rev_ps = 20 # Revolutions per second
     # Do some maths to set the bit read rate and angular speed
     # to fulfil the above two parameters
-    bitrate = 44100
-    angular_speed_rad_ps = 2*np.pi*angular_speed_rev_ps
-    rads_per_bit = angular_speed_rad_ps / bitrate
-    bits_per_read = int(2*np.pi*read_portion // rads_per_bit)
+    # bitrate = 44100
+    # angular_speed_rad_ps = 2*np.pi*angular_speed_rev_ps
+    # rads_per_bit = angular_speed_rad_ps / bitrate
+    # bits_per_read = int(2*np.pi*read_portion // rads_per_bit)
 
     dont_even_bother = False
+    the_stream = Stream() # To keep linters happy about me closing it later
     try:
         if audio_file is None:
-            the_stream = LiveStream(chunk_size=bits_per_read, requested_channels=2,
-                device_index=index_choice)
+            the_stream = LiveStream(requested_channels=(1 if args.stereo_mode=="mono" else 2),
+                                    device_index=index_choice)
         else:
             the_stream = FileStream(audio_file, realtime=True)
     except Exception as e:
@@ -101,23 +79,23 @@ if __name__ == "__main__":
         print("Error:", e)
         threads.kill_all() 
         # Don't even bother trying to start the rest of the program
-        try:
-            the_stream.close()
-        except:
-            pass
+        the_stream.close()
         dont_even_bother = True
 
     # Setup some things
     if not dont_even_bother:
         try:
             # tick_thr = threads.TickThread(1, _print_times) # This will be killed by kill_all()
-            canvas = setup()
+            root = WavisApp(the_stream)
+            root.on_exit(safely_exit)
+            root.bind_keys()
+            vt = root.vis_thread
+            rt = root.read_thread
+            canvas = root.canvas
             # Default circle parameters
-            radius, amp, scale = 300, 20, 0.007
-            vt = threads.VisThread(canvas, angular_speed_rad_ps, rads_per_bit, radius, amp, scale)
-            rt = threads.ReadThread(bits_per_read, the_stream)
+            # radius, amp, scale = 300, 20, 0.007
 
-            bind_keys(canvas.master, vt, rt, df, the_stream, safe_exit)
+            # bind_keys(root, vt, rt, df, the_stream, safely_exit)
             # These two are new but could be moved into the bind_keys function
         except Exception as e:
             print("Setup failed.")# Error: %s" % e)
@@ -137,6 +115,7 @@ if __name__ == "__main__":
             print("Ending threads...")
             threads.kill_all() # From threads.py, kills any instances of TickThread or TimerThread
             print()
+            the_stream.close()
             try:
                 canvas.master.destroy() 
             except:
@@ -147,12 +126,13 @@ if __name__ == "__main__":
         print("Average time for read:         " f"{rt.read_times.get_avg()*1e3:.3f} ms") 
         print("Average time waiting for draw: " f"{rt.wait_for_draw_times.get_avg()*1e3:.3f} ms")
         print("Average time waiting for read: " f"{vt.wait_for_read_times.get_avg()*1e3:.3f} ms")
+        print("Average FPS: " f"{1/vt.fps_timer.get_avg():.2f}")
 
-if not SAFE_EXIT:
-    time.sleep(1.2) # Wait for threads to finish printing stuff
-    print("")
-    print("") # One more for good measure
-    input("Enter to close")
-else:
-    print("")
-    print("")
+    if not SAFE_EXIT:
+        time.sleep(1.2) # Wait for threads to finish printing stuff
+        print("")
+        print("") # One more for good measure
+        input("Enter to close")
+    else:
+        print("")
+        print("")

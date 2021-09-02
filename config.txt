@@ -1,0 +1,6 @@
+bits_per_read    = 2048
+radians_per_read = 2*PI*0.999 
+amplitude        = 20.
+x_scale          = 1.
+y_scale          = 1.
+pencolour        = "red"

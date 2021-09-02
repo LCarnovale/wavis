@@ -8,7 +8,7 @@ from .stream import Stream
 
 class LiveStream(Stream):
     """ Access a live source of audio such as microphone or other audio input."""
-    def __init__(self, bitrate=44100, chunk_size=1024, requested_channels=1,
+    def __init__(self, bitrate=44100, chunk_size=2048, requested_channels=1,
             device_index=-1) -> None:
         """ Create a new LiveStream source. Note that in the `__init__` method,
         the user will be prompted to specify the desired device for audio input,
@@ -39,6 +39,7 @@ class LiveStream(Stream):
         print("Loading pyAudio...")
         self.p = pyaudio.PyAudio()
         # Get audio source:
+        skip_prompt = False
         if device_index >= 0:
             try:
                 device = self.p.get_device_info_by_index(device_index)
@@ -137,7 +138,7 @@ class LiveStream(Stream):
         print("Not implemented for live stream.")
     pause = stop = sync_playback = play
     def seek(self, val):
-        print("Not implemented for live stream.")
+        self.play()
     rseek = seek
 
     def can_pause(self):
