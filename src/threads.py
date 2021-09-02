@@ -233,7 +233,8 @@ class VisThread(Thread):
                 radius = 0.8 * min(self.canvas.winfo_width(), self.canvas.winfo_height()) / 2
                 tags, angle_end = draw_circle(self.canvas, audio_glob, angle=self.rads_p_read,
                     start=angle_end, radius=radius, amp=self.root.amplitude, 
-                    lock=draw_finish_event.set, scale=0.003,
+                    lock=draw_finish_event.set, scale=0.003, 
+                    tension=self.root.tension,
                     x_scale=self.x_scale, y_scale=self.y_scale,
                     fill=self.pen_colour, stereo_mode=STEREO_MODE,
                 )

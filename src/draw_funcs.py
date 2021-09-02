@@ -12,6 +12,7 @@ up_sample_factor = 1
 _last_signal = []
 def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200, 
         amp=20,scale=False, lock=None, fill="red", x_scale=1, y_scale=1,
+        tension=0.8,
         stereo_mode:Literal["mono", "combine", "split"]="mono"):
     """ Plot the data on a circle, spread out over the given angle.
     Give `angle=2*pi` (default) for a full circle. 
@@ -104,7 +105,7 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
         diff = _last_signal[shift(-1)] - data + \
                _last_signal[shift(+1)] - data + \
                _last_signal - data
-        data += 0.15 * diff
+        data += (tension/3) * diff
     _last_signal = data 
 
     angles = np.linspace(start, start+angle, n_points)
