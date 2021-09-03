@@ -1,7 +1,10 @@
 bits_per_read    = 2048
-radians_per_read = 2*PI*0.999 
-amplitude        = 20.
+radians_per_read = 2*PI*0.9995
+amplitude        = 5.
 x_scale          = 1.
 y_scale          = 1.
 pencolour        = "red"
 tension          = 0.8
+smoothing        = 1
+stereo_mode      = "combine"
+line_width       = 1

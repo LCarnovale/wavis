@@ -12,7 +12,7 @@ up_sample_factor = 1
 _last_signal = []
 def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200, 
         amp=20,scale=False, lock=None, fill="red", x_scale=1, y_scale=1,
-        tension=0.8,
+        tension=0.8, thickness=1,
         stereo_mode:Literal["mono", "combine", "split"]="mono"):
     """ Plot the data on a circle, spread out over the given angle.
     Give `angle=2*pi` (default) for a full circle. 
@@ -77,6 +77,11 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
     else:
         power = np.fft.fft(data)
         mod = np.sqrt(np.conj(power)*power)
+    
+    # if stereo_mode != "split":
+    #     freqs = np.fft.fftfreq(len(mod), 1/44100 / up_sample_factor)
+    #     mask = (freqs > 300) & (freqs < 7000)
+    #     mod[~mask] = 0
 
     if stereo_mode in ("mono", "combine"):
         n = len(mod)
@@ -88,7 +93,6 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
         data_right[mid:] = data_left[mid:]
         data = data_right
 
-    
     new_selection = np.linspace(
         n_ham*up_sample_factor, 
         (n_points - n_ham)*up_sample_factor, 
@@ -131,7 +135,7 @@ def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200,
     # This could be used to let lines fade out as a different colour etc.
     # if _last_tags[0]:
     #     canvas.itemconfig(_last_tags[0], fill="dark red")
-    tags = canvas.create_line(*line_coords.flatten(), fill=fill)
+    tags = canvas.create_line(*line_coords.flatten(), fill=fill, width=thickness)
 
     _last_tags[1] = tags
     return tags, angles[-1]

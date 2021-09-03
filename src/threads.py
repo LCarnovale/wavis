@@ -137,9 +137,10 @@ class ReadThread(Thread):
     wait_for_draw_times = TimerThread(t_avgs, name="wait for draw times")
     wait_for_draw_times.start()
 
-    def __init__(self, bits_per_read, stream, *args, **kwargs):
+    def __init__(self, channels, bits_per_read, stream, *args, **kwargs):
         global RUNNING
         super().__init__(*args, group=None, **kwargs)
+        self.channels = channels
         self.bits_per_read = bits_per_read
         self.stream = stream
         buffer_fill_event.clear() # Buffer is not filled to begin with
@@ -153,10 +154,7 @@ class ReadThread(Thread):
             # Buffer is saying it is now 
             # in the process of being filled
             self.read_times.t_start()
-            if STEREO_MODE != "mono":
-                time, audio = self.stream.read(int(self.bits_per_read), channels=2)
-            else:
-                time, audio = self.stream.read(int(self.bits_per_read), channels=1)
+            time, audio = self.stream.read(int(self.bits_per_read), channels=self.channels)
             
             self.read_times.t_stop()
             if len(time) == 0:
@@ -234,9 +232,9 @@ class VisThread(Thread):
                 tags, angle_end = draw_circle(self.canvas, audio_glob, angle=self.rads_p_read,
                     start=angle_end, radius=radius, amp=self.root.amplitude, 
                     lock=draw_finish_event.set, scale=0.003, 
-                    tension=self.root.tension,
+                    tension=self.root.tension, thickness=self.root.line_width,
                     x_scale=self.x_scale, y_scale=self.y_scale,
-                    fill=self.pen_colour, stereo_mode=STEREO_MODE,
+                    fill=self.pen_colour, stereo_mode=self.root.stereo_mode,
                 )
                 # The above method will call draw_finish_event.set() when it is done with 
                 # references to the buffers. The reader thread can then immediately 
@@ -251,7 +249,7 @@ class VisThread(Thread):
                 _end_wait() # End wait will set RUNNING to False, ending the parent while loop
                 # Set the draw finish event so that the Reader thread doesn't hang
                 draw_finish_event.set()
-                break  
+                break
             finally:
                 self.draw_times.t_stop()
         draw_finish_event.set()

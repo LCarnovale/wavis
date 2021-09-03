@@ -80,7 +80,7 @@ class FileStream(Stream):
         # Hasn't been tested for Stereo (2 channel) requests
         if self.realtime:
             if self.paused:
-                return np.zeros(chunk_size), [np.zeros(chunk_size)]
+                return np.zeros(chunk_size), [np.zeros(chunk_size)]*channels
             # Get time since start
             chunk_time = chunk_size / self.bitrate
             thr = wait_thread(chunk_time, start=True)

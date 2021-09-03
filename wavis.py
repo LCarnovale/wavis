@@ -18,7 +18,7 @@ parser.add_argument("-i", "--index", action="store", dest="index", default=-1, t
 parser.add_argument("-f", "--file", action="store", dest="file", default=None, type=str,
     help="An audio file can be supplied, if it is then it will be visualised, and when the " \
          "file ends the program will end too.")
-parser.add_argument("-s", "--stereo", default="mono", dest="stereo_mode",
+parser.add_argument("-s", "--stereo", default="combine", dest="stereo_mode",
     choices=["mono", "split", "combine"])
 
 args = parser.parse_args()
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     from src.live_stream import LiveStream
 
 
-    threads.STEREO_MODE = args.stereo_mode
+
 
     # With lots of threads running we need to keep track of all of them 
     # and if the main one crashes, don't let the program hang waiting for
