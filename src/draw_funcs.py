@@ -1,7 +1,7 @@
 
-from typing import Literal
-import numpy as np
 import tkinter as tk
+
+import numpy as np
 
 # import matplotlib.pyplot as plt
 
@@ -13,7 +13,7 @@ _last_signal = []
 def draw_circle(canvas: tk.Canvas, data, angle=2*np.pi, start=0, radius=200, 
         amp=20,scale=False, lock=None, fill="red", x_scale=1, y_scale=1,
         tension=0.8, thickness=1,
-        stereo_mode:Literal["mono", "combine", "split"]="mono"):
+        stereo_mode:str="mono"):
     """ Plot the data on a circle, spread out over the given angle.
     Give `angle=2*pi` (default) for a full circle. 
     The plotting will begin at angle `start`, default 0.

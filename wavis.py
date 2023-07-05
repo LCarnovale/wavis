@@ -1,6 +1,4 @@
-from src.threads import STEREO_MODE
-from app import WavisApp
-from src.stream import Stream
+import argparse
 import sys
 import time
 import tkinter as tk
@@ -8,7 +6,9 @@ from threading import Event, Thread
 
 import numpy as np
 
-import argparse
+from app import WavisApp
+from src.stream import Stream
+from src.threads import STEREO_MODE
 
 parser = argparse.ArgumentParser("Run a realtime audio visualiser.")
 parser.add_argument("-i", "--index", action="store", dest="index", default=-1, type=int,
@@ -42,19 +42,15 @@ def safely_exit():
 if __name__ == "__main__":
     # Import these last. These imports will start threads that need to 
     # be stopped with src.threads.kill_all() before ending the program.  
-    from src.bindings import bind_keys
     import src.draw_funcs as df
-    from src.file_stream import FileStream
     import src.threads as threads
+    from src.bindings import bind_keys
+    from src.file_stream import FileStream
     from src.live_stream import LiveStream
-
-
-
 
     # With lots of threads running we need to keep track of all of them 
     # and if the main one crashes, don't let the program hang waiting for
     # the others.  
-
     # If we get to this point, we at least know the imports worked,
     # so no need to try-except these lines.
     # read_portion = 1.0 # Amount of full circle to read each tick
@@ -71,6 +67,7 @@ if __name__ == "__main__":
     try:
         if audio_file is None:
             the_stream = LiveStream(requested_channels=(1 if args.stereo_mode=="mono" else 2),
+                                    bitrate=48000, format=LiveStream.Format.Int16,
                                     device_index=index_choice)
         else:
             the_stream = FileStream(audio_file, realtime=True)

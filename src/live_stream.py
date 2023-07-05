@@ -1,3 +1,4 @@
+from enum import Enum
 import time
 
 import numpy as np
@@ -7,8 +8,13 @@ from .stream import Stream
 
 
 class LiveStream(Stream):
+    class Format(Enum):
+        Int16 = (pyaudio.paInt16, np.int16)
+        Int24 = (pyaudio.paInt24, np.int32)
+        Int32 = (pyaudio.paInt32, np.int32)
+
     """ Access a live source of audio such as microphone or other audio input."""
-    def __init__(self, bitrate=44100, chunk_size=2048, requested_channels=1,
+    def __init__(self, bitrate=44100, format:Format=Format.Int16, chunk_size=2048, requested_channels=1,
             device_index=-1) -> None:
         """ Create a new LiveStream source. Note that in the `__init__` method,
         the user will be prompted to specify the desired device for audio input,
@@ -30,7 +36,8 @@ class LiveStream(Stream):
         """
         # stream constants
         self.CHUNK = chunk_size
-        self.FORMAT = pyaudio.paInt16
+        # Extract Format enum value from supplied format
+        self.FORMAT, self.dtype = LiveStream.Format(format).value
         self.RATE = bitrate
 
         self.paused = False
@@ -117,7 +124,7 @@ class LiveStream(Stream):
 
         time_steps = np.linspace(time_now - chunk_size/self.bitrate, time_now, chunk_size)
         try:
-            data = np.fromstring(self.stream.read(chunk_size), dtype=np.int16)
+            data = np.fromstring(self.stream.read(chunk_size), dtype=self.dtype)
         except Exception as e:
             print("Error on read - did something happen to the device?")
             print("Error:", e)

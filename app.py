@@ -1,10 +1,15 @@
 import tkinter as tk
+from enum import Enum
 
-from numpy.lib.utils import info
-import src.threads
 import src.stream
+import src.threads
 
 CONFIG_PATH = "config.txt"
+
+class Mode(Enum):
+    BOTH = "both"
+    MONO = "mono"
+    COMBINE = "combine"
 
 class ParseError(Exception):
     def __init__(self):
